@@ -12,6 +12,7 @@ import NewArrivals from './pages/NewArrivals';
 import CartPage from './pages/CartPage';
 import ProductDetailsPage from './pages/ProductDetailsPage';
 import WishlistPage from './pages/Wishlist';
+import UserDash from './Dashboard/UserDash'
 function App() {
   return (
     <Router>
@@ -28,6 +29,7 @@ function App() {
           <Route path="/add-to-cart" element={<CartPage/>} />
           <Route path="/product/:id" element={<ProductDetailsPage/>} />
           <Route path='/my-wishlist' element={<WishlistPage/>}/>
+          <Route path='/my-account' element={<UserDash/>}/>
         </Routes>
         <Footer />
       </AuthProvider>
