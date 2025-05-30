@@ -148,7 +148,7 @@ export default function Header() {
                     👋 Hi, {user && user.fullname ? user.fullname : "User"}
                   </div>
                   <Link
-                    to="/account"
+                    to="/dashboard"
                     className="block px-4 py-2 text-gray-800 hover:bg-gray-100"
                   >
                     My Account
@@ -212,7 +212,7 @@ export default function Header() {
                 {[
                   {
                     label: "My Account",
-                    to: "/my-account",
+                    to: "/dashboard",
                     icon: <UserCircle className="w-4 h-4 mr-2 inline-block" />,
                   },
                   {

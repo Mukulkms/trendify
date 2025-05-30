@@ -1,66 +1,22 @@
-import React, { Suspense, lazy, useContext } from 'react';
-import Sidebar from '../components/dashboardcomp/Sidebar';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { FaShoppingBag, FaWallet, FaMapMarkerAlt, FaUser, FaHeadset, FaHeart, FaStar } from 'react-icons/fa';
-import { AuthContext } from '../components/Auth/AuthContext';
+// src/Dashboard/UserDash.jsx
+import React from 'react';
+import { Outlet } from 'react-router-dom'; // Essential for nested routes
+import Sidebar from '../components/dashboardcomp/Sidebar'; // Path to your Sidebar
 
-const UserCard = lazy(() => import('../components/dashboardcomp/UserCard'));
-const TribeCard = lazy(() => import('../components/dashboardcomp/TribeCard'));
-const QuickLinkCard = lazy(() => import('../components/dashboardcomp/QuickLinkCard')); // Corrected import name
-
-const DashboardPage = () => {
-  const { user } = useContext(AuthContext);
-
-  const tribeData = {
-    title: 'Trendify',
-    subtitle: 'Upgrade to the premium experience now',
-    benefits: ['Free Shipping', 'Early Access', 'VIP Support'],
-  };
-
-  const quickLinksData = [
-    { icon: <FaShoppingBag />, title: 'My Orders', description: 'View, Modify And Track Orders' },
-    { icon: <FaWallet />, title: 'My Payments', description: 'View And Modify Payment Methods' },
-    { icon: <FaWallet />, title: 'My Wallet', description: 'Wallet History And Redeemed Gift Cards' },
-    { icon: <FaMapMarkerAlt />, title: 'My Addresses', description: 'Edit, Add Or Remove Addresses' },
-    { icon: <FaUser />, title: 'My Profile', description: 'Edit Personal Info And Change Password' },
-    { icon: <FaHeadset />, title: 'Help & Support', description: 'Reach Out To Us' },
-    { icon: <FaHeart />, title: 'My Wishlist', description: 'View Your Saved Items' },
-    { icon: <FaStar />, title: 'My Reviews', description: 'See What You\'ve Said' },
-  ];
-
-  const QuickLinksSection = ({ links }) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-      {links.map((link, index) => (
-        <Suspense key={index} fallback={<LoadingSpinner />}>
-          <QuickLinkCard link={link} />
-        </Suspense>
-      ))}
-    </div>
-  );
-
+const UserDashboardLayout = () => {
   return (
     <div className="flex bg-gray-100 min-h-screen">
-      {/* Sidebar - Hidden on mobile */}
+      {/* Sidebar - Remains consistent across all dashboard sub-pages */}
       <div className="hidden md:flex w-64 bg-black text-gray-400 py-6 flex-shrink-0 shadow-md">
         <Sidebar />
       </div>
 
-      {/* Main Content - Full width on mobile */}
+      {/* Main Content Area - This is where the specific dashboard pages (like DashboardPage or MyAddressesPage) will render */}
       <div className="flex-1 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <Suspense fallback={<LoadingSpinner />}>
-            {user && <UserCard user={user} />}
-          </Suspense>
-          <Suspense fallback={<LoadingSpinner />}>
-            <TribeCard tribe={tribeData} />
-          </Suspense>
-        </div>
-        <Suspense fallback={<LoadingSpinner />}>
-          <QuickLinksSection links={quickLinksData} />
-        </Suspense>
+        <Outlet /> {/* <-- This component renders the content of the currently matched nested route */}
       </div>
     </div>
   );
 };
 
-export default DashboardPage;
+export default UserDashboardLayout;
