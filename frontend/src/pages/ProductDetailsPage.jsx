@@ -66,7 +66,7 @@ const ProductDetailsPage = () => {
     localStorage.setItem("cartItems", JSON.stringify(currentCart));
 
     // Redirect to cart page
-    navigate("/add-to-cart");
+    navigate("/cart");
   };
 
   const handleAddToWishlist = () => {
