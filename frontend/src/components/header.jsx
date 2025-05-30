@@ -148,7 +148,7 @@ export default function Header() {
                     👋 Hi, {user && user.fullname ? user.fullname : "User"}
                   </div>
                   <Link
-                    to="/my-account"
+                    to="/account"
                     className="block px-4 py-2 text-gray-800 hover:bg-gray-100"
                   >
                     My Account
@@ -188,7 +188,7 @@ export default function Header() {
            <Link to="/my-wishlist">
           <  Heart className="w-6 h-6 cursor-pointer hover:text-indigo-500 transition" />
            </Link>
-          <Link to="/add-to-cart">
+          <Link to="/cart">
             <ShoppingBag className="w-6 h-6 cursor-pointer hover:text-indigo-500 transition" />
           </Link>
         </div>
