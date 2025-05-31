@@ -14,7 +14,7 @@ const addressValidationRules = [
     .withMessage('Mobile number must be 10 digits')
     .isNumeric()
     .withMessage('Mobile number must contain only numbers'),
-  body('fullAddress').notEmpty().withMessage('Full address is required'), // Changed from street to fullAddress
+  body('fullAddress').notEmpty().withMessage('Full address is required'),
   body('city').notEmpty().withMessage('City is required'),
   body('state').notEmpty().withMessage('State is required'),
   body('pincode')
@@ -30,7 +30,7 @@ const addressValidationRules = [
 // Get all addresses for the logged-in user
 router.get('/', protect, async (req, res) => {
   try {
-    const addresses = await Address.find({ userId: req.user.id }); // Changed user to userId
+    const addresses = await Address.find({ userId: req.user.id });
     res.status(200).json(addresses);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch addresses', error: err.message });
@@ -45,31 +45,75 @@ router.post('/', protect, addressValidationRules, async (req, res) => {
   }
 
   try {
-    const { fullName, mobileNumber, fullAddress, city, state, pincode, country, isDefault } = req.body; // Changed street to fullAddress
+    const { fullName, mobileNumber, fullAddress, city, state, pincode, country, isDefault } = req.body;
 
-    // If setting as default, unset other default addresses
     if (isDefault) {
       await Address.updateMany(
-        { userId: req.user.id, isDefault: true }, // Changed user to userId
+        { userId: req.user.id, isDefault: true },
         { $set: { isDefault: false } }
       );
     }
 
     const address = new Address({
-      userId: req.user.id, // Changed user to userId
+      userId: req.user.id,
       fullName,
       mobileNumber,
-      fullAddress, // Changed street to fullAddress
+      fullAddress,
       city,
       state,
       pincode,
       country,
-      isDefault: isDefault || false, // Ensure isDefault is set
+      isDefault: isDefault || false,
     });
     const savedAddress = await address.save();
     res.status(201).json(savedAddress);
   } catch (err) {
     res.status(500).json({ message: 'Failed to save address', error: err.message });
+  }
+});
+
+// Update an existing address
+router.put('/:id', protect, addressValidationRules, async (req, res) => {
+  console.log(`PUT /api/addresses/${req.params.id} called by user:`, req.user?.id);
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
+  }
+
+  try {
+    const address = await Address.findById(req.params.id);
+    if (!address) {
+      console.log(`Address not found for ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'Address not found' });
+    }
+    if (address.userId.toString() !== req.user.id) {
+      console.log(`Unauthorized access attempt by user ${req.user.id} for address ${req.params.id}`);
+      return res.status(403).json({ message: 'Unauthorized to update this address' });
+    }
+
+    const { fullName, mobileNumber, fullAddress, city, state, pincode, country, isDefault } = req.body;
+
+    if (isDefault) {
+      await Address.updateMany(
+        { userId: req.user.id, isDefault: true },
+        { $set: { isDefault: false } }
+      );
+    }
+
+    address.fullName = fullName;
+    address.mobileNumber = mobileNumber;
+    address.fullAddress = fullAddress;
+    address.city = city;
+    address.state = state;
+    address.pincode = pincode;
+    address.country = country;
+    address.isDefault = isDefault || false;
+
+    const updatedAddress = await address.save();
+    res.status(200).json(updatedAddress);
+  } catch (err) {
+    console.error(`PUT /api/addresses/${req.params.id} error:`, err.message);
+    res.status(500).json({ message: 'Failed to update address', error: err.message });
   }
 });
 
