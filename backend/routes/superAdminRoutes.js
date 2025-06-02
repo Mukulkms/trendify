@@ -1,6 +1,7 @@
+
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const auth = require('../middleware/authMiddleware');
 const {
   registerUser,
   loginUser,
@@ -23,3 +24,5 @@ router.put('/approve/:userId', auth.protect, auth.superAdminOnly, approveUser);
 router.delete('/reject/:userId', auth.protect, auth.superAdminOnly, rejectUser);
 
 module.exports = router;
+console.log('auth.protect:', typeof auth.protect);
+console.log('auth.superAdminOnly:', typeof auth.superAdminOnly);
