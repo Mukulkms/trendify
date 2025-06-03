@@ -49,6 +49,9 @@ app.use('/api', adminVendorAuthRoutes);
 const superAdminRoutes = require('./routes/superAdminRoutes');
 app.use('/api/superadmin', superAdminRoutes);
 
+const superAdminAuthRoutes = require('./routes/superAdminAuthRoutes');
+app.use('/api/superadmin-auth', superAdminAuthRoutes);
+
 const productRoutes = require("./routes/productRoutes");
 app.use("/api/products", productRoutes);
 

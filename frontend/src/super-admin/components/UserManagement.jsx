@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../components/Auth/AuthContext'; // Adjusted path
+import { useAuth } from '../AuthContext2'; // Adjusted path
 
 const UserManagement = () => {
     const { API_BASE_URL } = useAuth();

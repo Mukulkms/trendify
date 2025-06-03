@@ -24,5 +24,3 @@ router.put('/approve/:userId', auth.protect, auth.superAdminOnly, approveUser);
 router.delete('/reject/:userId', auth.protect, auth.superAdminOnly, rejectUser);
 
 module.exports = router;
-console.log('auth.protect:', typeof auth.protect);
-console.log('auth.superAdminOnly:', typeof auth.superAdminOnly);
