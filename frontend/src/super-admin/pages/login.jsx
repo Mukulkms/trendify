@@ -10,11 +10,11 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth2(); // ✅ Use context
 
-  const handleChange = e => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -36,8 +36,11 @@ export default function Login() {
       // ✅ Redirect based on role and approval status
       if (data.user.role === 'super-admin') {
         navigate('/superadmin/dashboard');
-      } else if ((data.user.role === 'admin' || data.user.role === 'vendor') && data.user.isApproved) {
-        navigate('/vendor/dashboard');
+      } else if (
+        (data.user.role === 'admin' || data.user.role === 'vendor') &&
+        data.user.status === 'approved'
+      ) {
+        navigate('/superadmin/dashboard');
       } else {
         alert('Your registration is pending approval from super-admin.');
       }
@@ -59,7 +62,9 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block mb-1 font-medium">Email</label>
+            <label htmlFor="email" className="block mb-1 font-medium">
+              Email
+            </label>
             <input
               id="email"
               name="email"
@@ -72,7 +77,9 @@ export default function Login() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block mb-1 font-medium">Password</label>
+            <label htmlFor="password" className="block mb-1 font-medium">
+              Password
+            </label>
             <input
               id="password"
               name="password"

@@ -33,6 +33,8 @@ import MyProfilePage from './pages/MyProfilePage.jsx';
 import SuperAdminRegister from './super-admin/pages/register';
 import SuperAdminLogin from './super-admin/pages/login';
 import AdminDash from './super-admin/AdminDash.jsx';
+import DashboardLayout from './super-admin/layouts/DashboardLayout.jsx';
+import Users from './super-admin/components/UserManagement';
 
 // Protected Routes
 const ProtectedRoute = ({ children }) => {
@@ -87,13 +89,20 @@ function App() {
             <Route element={<SuperAdminLayout />}>
               <Route path="/superadmin/register" element={<SuperAdminRegister />} />
               <Route path="/superadmin/login" element={<SuperAdminLogin />} />
-              <Route path="/superadmin/dashboard" element={
-                <ProtectedRoute2>
-                  <AdminDash />
-                </ProtectedRoute2>
-              } />
             </Route>
 
+            {/* Superadmin Dashboard layout with Sidebar/Header */}
+            <Route path="/superadmin" element={
+              <ProtectedRoute2>
+                <DashboardLayout />
+              </ProtectedRoute2>
+            }>
+              <Route path="dashboard" element={<AdminDash />} />
+              <Route path="orders" element={<div>Orders Page</div>} />
+              <Route path="products" element={<div>Products Page</div>} />
+              <Route path="users" element={<Users/>} />
+              {/* Add more routes here */}
+            </Route>
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

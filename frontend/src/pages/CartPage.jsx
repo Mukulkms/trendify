@@ -175,45 +175,50 @@ const CartPage = () => {
   };
 
   const handleProceedToCheckout = () => {
-    console.log("Proceed to Checkout clicked");
-    console.log("Cart Items:", cartItems);
-    console.log("Pincode:", pinCode);
-    console.log("User:", user);
+  console.log("Proceed to Checkout clicked");
+  console.log("Cart Items:", cartItems);
+  console.log("Pincode:", pinCode);
+  console.log("User:", user);
 
-    if (cartItems.length === 0) {
-      alert("Your cart is empty. Add items to proceed.");
-      return;
-    }
-    // It's generally better to validate pincode on the server side
-    // and also ensure it's been checked for delivery before proceeding.
-    if (!pinCode || !/^\d{6}$/.test(pinCode)) {
-      alert("Please enter a valid 6-digit pincode.");
-      return;
-    }
-    if (!deliveryEstimate) {
-      alert(
-        "Please check pincode for delivery availability before proceeding."
-      );
-      return;
-    }
+  if (cartItems.length === 0) {
+    alert("Your cart is empty. Add items to proceed.");
+    return;
+  }
 
-    if (!user) {
-      console.log("User not authenticated, redirecting to login");
-      navigate("/login", { state: { from: "/cart" } });
-      return;
-    }
+  if (!pinCode || !/^\d{6}$/.test(pinCode)) {
+    alert("Please enter a valid 6-digit pincode.");
+    return;
+  }
 
-    const orderDetails = {
-      items: cartItems,
-      totalPrice: calculateTotalPrice().total,
-      discount: calculateTotalPrice().totalDiscount,
-    };
-    console.log("Navigating to /checkout/address with:", {
-      orderDetails,
-      pinCode,
-    });
-    navigate("/checkout/address", { state: { orderDetails, pinCode } });
+  if (!deliveryEstimate) {
+    alert("Please check pincode for delivery availability before proceeding.");
+    return;
+  }
+
+  if (!user) {
+    console.log("User not authenticated, redirecting to login");
+    navigate("/login", { state: { from: "/cart" } });
+    return;
+  }
+
+  const orderDetails = {
+    items: cartItems,
+    totalPrice: calculateTotalPrice().total,
+    discount: calculateTotalPrice().totalDiscount,
   };
+
+  // Clear cart after placing order
+  setCartItems([]);
+  localStorage.removeItem("cartItems");
+
+  console.log("Navigating to /checkout/address with:", {
+    orderDetails,
+    pinCode,
+  });
+
+  navigate("/checkout/address", { state: { orderDetails, pinCode } });
+};
+
 
   const { total, totalDiscount } = calculateTotalPrice();
 

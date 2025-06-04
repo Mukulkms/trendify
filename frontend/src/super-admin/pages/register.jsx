@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import SuperAdminHeader from '../../components/SuperAdminHeader';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -46,7 +47,11 @@ export default function Register() {
   };
 
   return (
+    <>
+   
+           <SuperAdminHeader/>
     <div className="max-w-md mx-auto mt-12 p-6 border rounded shadow-lg bg-white">
+     
       <h1 className="text-2xl font-bold mb-6 text-center">Register as Admin or Vendor</h1>
 
       {message && (
@@ -135,5 +140,6 @@ export default function Register() {
         </button>
       </form>
     </div>
+     </>
   );
 }

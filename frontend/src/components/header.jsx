@@ -5,7 +5,6 @@ import {
   Menu,
   UserCircle,
   X,
-  CreditCard,
 } from "lucide-react";
 import { useState, useContext, useRef, useEffect } from "react"; // Import useEffect
 import { Link, useNavigate } from "react-router-dom";
@@ -154,7 +153,7 @@ export default function Header() {
                     My Account
                   </Link>
                   <Link
-                    to="/my-wishlist"
+                    to="/wishlist"
                     className="block px-4 py-2 text-gray-800 hover:bg-gray-100"
                   >
                     My Wishlist
@@ -165,12 +164,7 @@ export default function Header() {
                   >
                     My Orders
                   </Link>
-                  <Link
-                    to="/my-wallet"
-                    className="block px-4 py-2 text-gray-800 hover:bg-gray-100"
-                  >
-                    My Wallet
-                  </Link>
+                  
                   <button
                     onClick={() => {
                       logout();
@@ -185,7 +179,7 @@ export default function Header() {
               )}
             </div>
           )}
-           <Link to="/my-wishlist">
+           <Link to="/wishlist">
           <  Heart className="w-6 h-6 cursor-pointer hover:text-indigo-500 transition" />
            </Link>
           <Link to="/cart">
@@ -217,7 +211,7 @@ export default function Header() {
                   },
                   {
                     label: "My Wishlist",
-                    to: "/my-wishlist",
+                    to: "/wishlist",
                     icon: <Heart className="w-4 h-4 mr-2 inline-block" />,
                   },
                   {
@@ -225,11 +219,7 @@ export default function Header() {
                     to: "/my-orders",
                     icon: <ShoppingBag className="w-4 h-4 mr-2 inline-block" />,
                   },
-                  {
-                    label: "My Wallet",
-                    to: "/my-wallet",
-                    icon: <CreditCard className="w-4 h-4 mr-2 inline-block" />,
-                  },
+                  
                 ].map((item) => (
                   <Link
                     key={item.to}

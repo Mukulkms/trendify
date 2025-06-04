@@ -1,11 +1,8 @@
 // src/super-admin/components/DashboardOverview.jsx
-import React from 'react';
 
 const DashboardOverview = () => {
     return (
-        <div className="p-6">
-            <h2 className="text-2xl font-bold mb-6">Dashboard Overview</h2>
-           
+        <div className="">           
             {/* Total Order Overview & Statistics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white p-6 rounded-lg shadow-md">
