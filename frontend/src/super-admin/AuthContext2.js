@@ -9,18 +9,29 @@ export const AuthProvider2 = ({ children }) => {
   useEffect(() => {
     const validateToken = async () => {
       const token = localStorage.getItem("trendify_admin_token");
-      console.log("AuthContext2 - Token found:", token);
+      console.log("AuthContext2 - Token found:", token ? "Token present" : "No token");
 
       if (token) {
         try {
-          const response = await fetch("http://localhost:5000/api/superAdminAuthRoutes/me", {
+          const response = await fetch("http://localhost:5000/api/superadmin-auth/me", {
+            method: 'GET',
             headers: {
               Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
             },
           });
 
           if (!response.ok) {
-            throw new Error("Invalid or expired token");
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.message || `HTTP ${response.status}`;
+            console.error("AuthContext2 - Server response:", {
+              status: response.status,
+              statusText: response.statusText,
+              errorMessage,
+              headers: Object.fromEntries(response.headers.entries()),
+              url: response.url,
+            });
+            throw new Error(`HTTP ${response.status}: ${errorMessage}`);
           }
 
           const userData = await response.json();
@@ -36,9 +47,12 @@ export const AuthProvider2 = ({ children }) => {
             throw new Error("Unauthorized role");
           }
         } catch (err) {
-          console.error("AuthContext2 - Error:", err.message);
-          localStorage.removeItem("trendify_admin_token");
-          setUser(null);
+          console.error("AuthContext2 - Validation error:", err.message);
+          // Only remove token for 401/403 errors (invalid/unauthorized token)
+          if (err.message.includes("HTTP 401") || err.message.includes("HTTP 403")) {
+            localStorage.removeItem("trendify_admin_token");
+            setUser(null);
+          }
         }
       } else {
         console.log("AuthContext2 - No token found");

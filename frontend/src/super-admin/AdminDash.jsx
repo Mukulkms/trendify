@@ -1,29 +1,63 @@
-import React from 'react';
-
-// Import React Icons
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaHome, FaShoppingCart, FaBox, FaUsers, FaTag, FaDollarSign, FaChartBar, FaCog, FaQuestionCircle } from 'react-icons/fa';
 import { IoMdNotificationsOutline } from 'react-icons/io';
 import { CgProfile } from 'react-icons/cg';
 import DashboardOverview from './components/DashboardOverview';
 import SuperAdminHeader from '../components/SuperAdminHeader';
+import { useAuth2 } from '../super-admin/AuthContext2';
 
 export default function Dashboard() {
-  // Removed pendingUsers state and related functions (handleApprove, handleReject, useEffect)
+  const { user, logout, loading } = useAuth2();
+  const navigate = useNavigate();
+
+  // Check authentication status on mount
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
+
+  // Handle logout
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <p>Checking authentication...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-100 min-h-screen flex flex-col">
-<SuperAdminHeader />
-      {/* Super Admin Dashboard Header (Top bar from screenshot) */}
+      <SuperAdminHeader />
+      {/* Super Admin Dashboard Header */}
       <header className="bg-white p-4 shadow-md flex items-center justify-between z-10">
-        <h1 className="text-2xl font-bold text-gray-800">Hi, Mac</h1>
+        <h1 className="text-2xl font-bold text-gray-800">
+          Hi, {user ? user.fullname : 'Guest'}
+        </h1>
         <div className="flex items-center space-x-6">
           <IoMdNotificationsOutline className="w-6 h-6 text-gray-500 cursor-pointer hover:text-gray-700" />
           <div className="flex items-center cursor-pointer">
             <div>
-              <p className="text-sm font-semibold text-gray-800">Mac Gibson</p>
-              <p className="text-xs text-gray-500">Marketing Head</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {user ? user.fullname : 'Guest'}
+              </p>
+              <p className="text-xs text-gray-500">{user ? user.role : 'N/A'}</p>
             </div>
             <CgProfile className="w-5 h-5 text-gray-500 ml-2" />
           </div>
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors duration-200"
+          >
+            Logout
+          </button>
         </div>
       </header>
 
