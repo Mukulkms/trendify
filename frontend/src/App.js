@@ -3,6 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './components/Auth/AuthContext';
 import { AuthProvider2, useAuth2 } from './super-admin/AuthContext2';
 
+// // Import ToastContainer and toastify CSS
+// import { ToastContainer } from 'react-toastify';
+// import 'react-toastify/dist/ReactToastify.css';
+
 // Layouts
 import MainLayout from './layouts/MainLayout';
 import SuperAdminLayout from './layouts/SuperAdminLayout';
@@ -20,6 +24,7 @@ import ProductDetailsPage from './pages/ProductDetailsPage';
 import WishlistPage from './pages/Wishlist';
 import AddressSelectionPage from './pages/AddressSelectionPage';
 import PaymentPage from './pages/payment.jsx';
+
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
 // Dashboard Pages
@@ -35,6 +40,9 @@ import SuperAdminLogin from './super-admin/pages/login';
 import AdminDash from './super-admin/AdminDash.jsx';
 import DashboardLayout from './super-admin/layouts/DashboardLayout.jsx';
 import Users from './super-admin/components/UserManagement';
+import SuperAdminProducts from './super-admin/pages/SuperAdminProducts.jsx';
+import SuperAdminOrders from './super-admin/pages/SuperAdminOrdersPage.jsx'; // Corrected filename case if needed
+import OrderConfirmation from './pages/order-confirmation.jsx';
 
 // Protected Routes
 const ProtectedRoute = ({ children }) => {
@@ -72,6 +80,7 @@ function App() {
               <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
               <Route path="/checkout/address" element={<ProtectedRoute><AddressSelectionPage /></ProtectedRoute>} />
               <Route path="/checkout/payment" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
+              <Route path ="/order-confirmation" element = {<OrderConfirmation/>}/>
 
               {/* User Dashboard Routes */}
               <Route path="/dashboard" element={<ProtectedRoute><UserDashboardLayout /></ProtectedRoute>}>
@@ -98,8 +107,8 @@ function App() {
               </ProtectedRoute2>
             }>
               <Route path="dashboard" element={<AdminDash />} />
-              <Route path="orders" element={<div>Orders Page</div>} />
-              <Route path="products" element={<div>Products Page</div>} />
+              <Route path="orders" element={<SuperAdminOrders />} /> 
+              <Route path="products" element={<SuperAdminProducts />} />
               <Route path="users" element={<Users/>} />
               {/* Add more routes here */}
             </Route>

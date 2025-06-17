@@ -75,4 +75,6 @@ router.get('/me', protectSuperAdmin, (req, res) => {
   res.json(req.user);
 });
 
-module.exports = router;
+// --- THIS IS THE CRITICAL LINE TO CHANGE ---
+// It needs to export both the router AND the protectSuperAdmin middleware
+module.exports = { router, protectSuperAdmin };

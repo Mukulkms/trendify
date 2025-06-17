@@ -6,13 +6,22 @@ const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const passport = require("passport");
 require("./config/passport");
+const path = require('path');
 
 dotenv.config();
 
 const app = express();
 
-// Debugging: Check if MONGO_URI is loaded
 console.log("MONGO_URI:", process.env.MONGO_URI);
+
+// Basic middleware first
+app.use(express.json());
+app.use(cookieParser());
+app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+
+app.use('/images', express.static(path.join(__dirname, 'public', 'assets', 'images')));
+
+
 
 // Session middleware
 app.use(
@@ -22,10 +31,6 @@ app.use(
     saveUninitialized: false,
   })
 );
-
-app.use(express.json());
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
-app.use(cookieParser());
 
 // Database Connection
 mongoose
@@ -50,8 +55,10 @@ app.use('/api/admin-vendor-auth', adminVendorAuthRoutes);
 const superAdminRoutes = require('./routes/superAdminRoutes');
 app.use('/api/superadmin', superAdminRoutes);
 
-const superAdminAuthRoutes = require('./routes/superAdminAuthRoutes');
-app.use('/api/superadmin-auth', superAdminAuthRoutes);
+const superAdminAuthModule = require('./routes/superAdminAuthRoutes'); 
+app.use('/api/superadmin-auth', superAdminAuthModule.router);
+
+
 
 const productRoutes = require("./routes/productRoutes");
 app.use("/api/products", productRoutes);
@@ -62,21 +69,24 @@ app.use("/api/payment", paymentRoutes);
 const addressRoutes = require("./routes/addressRoutes");
 app.use("/api/addresses", addressRoutes);
 
+const orderRoutes = require("./routes/orderRoutes");
+app.use("/api/orders", orderRoutes);
+
 const authRoutes = require("./routes/authRoutes");
 app.use("/api/auth", authRoutes);
 
 const facebookAuthRoutes = require("./routes/facebookAuth");
-app.use("/auth/facebook", facebookAuthRoutes); // Changed path to avoid conflict
+app.use("/auth/facebook", facebookAuthRoutes);
 
 const googleAuthRoutes = require("./routes/googleAuth");
-app.use("/api/auth/google", googleAuthRoutes); // Changed path to avoid conflict
+app.use("/api/auth/google", googleAuthRoutes);
 
-// Catch-all for 404 errors
+// Catch-all for 404 errors (should be after all valid routes)
 app.use((req, res, next) => {
   res.status(404).json({ message: `Route ${req.originalUrl} not found` });
 });
 
-// Error handling middleware
+// Error handling middleware (should be the last middleware)
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!', error: err.message });
