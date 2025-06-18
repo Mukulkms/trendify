@@ -1,169 +1,441 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth2 } from '../AuthContext2';
+import { useState, useEffect } from "react";
+import { useAuth2 } from "../AuthContext2"; // Assuming this path is correct
 
-export default function SuperAdminProducts() {
+// A simple reusable modal component
+const Modal = ({ isOpen, onClose, children, title }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 animate-fadeIn overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-3xl w-full max-w-xl mx-auto transform transition-all duration-300 scale-100 opacity-100 max-h-[90vh] overflow-y-auto p-6 lg:p-8 relative">
+        <div className="flex justify-between items-center pb-4 border-b border-gray-200 mb-6 sticky top-0 bg-white z-10 -mx-6 -mt-6 px-6 pt-6 rounded-t-2xl lg:-mx-8 lg:-mt-8 lg:px-8 lg:pt-8">
+          <h2 className="text-2xl font-extrabold text-gray-800">{title}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-800 transition-colors duration-200 p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            aria-label="Close modal"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div className="pt-2">{children}</div>
+      </div>
+    </div>
+  );
+};
+
+export default function ProductManagement() {
   const { user, loading: authLoading } = useAuth2();
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newProduct, setNewProduct] = useState({
-    name: '',
-    price: '',
-    category: '',
-    image: '', // This will hold the filename or relative path
-    stock: '',
-    
-  });
-  const [formError, setFormError] = useState(null);
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null); // For general page errors
+  const [formError, setFormError] = useState(null); // For form-specific errors
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState(null);
 
-  // --- Pagination State ---
+  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [productsPerPage] = useState(10); // You can adjust this number
+  const [productsPerPage] = useState(15); // Show 15 products per page
 
-  // Helper function to construct image URL
-  const getImageUrl = (imagePath) => {
-    // If imagePath is already a full URL, return it as is
-    if (imagePath && (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
-      return imagePath;
-    }
-    // If imagePath starts with '/images/', just prepend the base URL
-    if (imagePath && imagePath.startsWith('/images/')) {
-        return `http://localhost:5000${imagePath}`;
-    }
-    // Otherwise, assume it's just the filename and construct the URL
-    // Make sure 'public/assets/images' is the correct path in your backend server.js
-    if (imagePath) {
-      return `http://localhost:5000/images/${imagePath}`;
-    }
-    return 'https://via.placeholder.com/50'; // Default placeholder if no image path
+  const [formData, setFormData] = useState({
+    name: "",
+    image: "", // Base64 string for image
+    price: "",
+    stock: 0,
+    size: [],
+    size_shoes: [],
+    size_kids: [],
+    category: "",
+    gender: "",
+    color: "",
+    brandname: "",
+    ratings: 0,
+  });
+  const [imagePreview, setImagePreview] = useState(null);
+
+  const categoryOptions = [
+    "T-Shirt",
+    "Shoes",
+    "Jeans",
+    "Hoodie",
+    "Joggers",
+    "Tops",
+    "Leggings",
+    "Top",
+    "Dress",
+    "Shirt",
+    "Jacket",
+    "Set",
+    "Skirt Set",
+    "Blazer",
+    "Skirt",
+    "Wallets",
+    "Belts",
+    "Watches",
+    "Sunglasses",
+    "Bags",
+    "Hats",
+  ];
+
+  const genderOptions = ["men", "women", "kids"];
+
+  const sizeOptions = [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "26",
+    "28",
+    "30",
+    "32",
+    "34",
+    "36",
+    "38",
+  ];
+  const sizeShoesOptions = ["6", "7", "8", "9", "10"];
+  const sizeKidsOptions = [
+    "0-1yrs",
+    "1-2yrs",
+    "2-3yrs",
+    "3-4yrs",
+    "4-5yrs",
+    "5-6yrs",
+    "6-7yrs",
+    "7-8yrs",
+    "8-9yrs",
+    "10-12yrs",
+  ];
+
+  const getToken = () => {
+    return localStorage.getItem("trendify_admin_token");
   };
 
-  // Fetch products from backend on mount
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading || !user) return; // Wait for auth to load and user to be present
 
-    const fetchProducts = async () => {
-      try {
-        const token = localStorage.getItem('trendify_admin_token');
-        const response = await fetch('http://localhost:5000/api/products', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    const token = getToken();
+    if (token) {
+      fetchProducts();
+    } else {
+      setError("Authentication token missing. Please log in.");
+    }
+  }, [authLoading, user]); // Depend on authLoading and user
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch products');
-        }
+  const fetchProducts = async () => {
+    const token = getToken();
+    if (!token) {
+      setError("Authentication token missing.");
+      return;
+    }
 
+    try {
+      setLoading(true);
+      setError(null); // Clear previous errors
+      const response = await fetch("http://localhost:5000/api/products", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
         const data = await response.json();
         setProducts(data);
-        // Reset to first page when products change
+        // Reset to first page if products change significantly
         setCurrentPage(1);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to fetch products: ${response.statusText}`
+        );
       }
-    };
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchProducts();
-  }, [authLoading, user]);
-
-  // Handle create product form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewProduct((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
     setFormError(null); // Clear form error on input change
   };
 
-  // Validate and handle create product form submission
-  const handleCreateProduct = async (e) => {
+  const handleSizeChange = (sizeType, size) => {
+    setFormData((prev) => ({
+      ...prev,
+      [sizeType]: prev[sizeType].includes(size)
+        ? prev[sizeType].filter((s) => s !== size)
+        : [...prev[sizeType], size],
+    }));
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageData = e.target.result;
+        setImagePreview(imageData);
+        setFormData((prev) => ({
+          ...prev,
+          image: imageData, // This will be the base64 string
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+    setFormError(null); // Clear form error on image upload
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      image: "",
+      price: "",
+      stock: 0,
+      size: [],
+      size_shoes: [],
+      size_kids: [],
+      category: "",
+      gender: "",
+      color: "",
+      brandname: "",
+      ratings: 0,
+    });
+    setImagePreview(null);
+    setIsEditing(false);
+    setCurrentProduct(null);
+    setFormError(null); // Also reset form error when resetting form
+  };
+
+  const handleOpenAddModal = () => {
+    resetForm(); // Ensure form is clear for new product
+    setShowAddProductModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowAddProductModal(false);
+    resetForm(); // Reset form on close
+  };
+
+  const handleEditProduct = (product) => {
+    setIsEditing(true);
+    setCurrentProduct(product);
+    setFormData({
+      name: product.name || "",
+      image: product.image || "", // Use existing image if present
+      price: product.price ? product.price.toString() : "", // Convert number to string for input
+      stock: product.stock || 0,
+      size: product.size || [],
+      size_shoes: product.size_shoes || [],
+      size_kids: product.size_kids || [],
+      category: product.category || "",
+      gender: product.gender || "",
+      color: product.color || "",
+      brandname: product.brandname || "",
+      ratings: product.ratings || 0,
+    });
+    setImagePreview(product.image || null); // Set image preview if image exists
+    setShowAddProductModal(true); // Open the modal for editing
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) {
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      alert("Admin authentication required to delete a product.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null); // Clear general error
+      const response = await fetch(
+        `http://localhost:5000/api/products/${productId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        setProducts((prev) => prev.filter((p) => p._id !== productId));
+        alert("Product deleted successfully!");
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message ||
+            `Failed to delete product: ${response.statusText}`
+        );
+      }
+    } catch (err) {
+      console.error("Error deleting product:", err);
+      setError(`Error deleting product: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Validate form data
+  const validateForm = () => {
+    const { name, price, category, gender, color, brandname, image } = formData;
+
+    // Check required fields
+    if (!name.trim()) return "Product Name is required.";
+    if (!image) return "Product Image is required. Please upload an image.";
+
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice <= 0)
+      return "Price is required and must be a positive number.";
+    if (!category) return "Category is required.";
+    if (!gender) return "Gender is required.";
+    if (!color.trim()) return "Color is required.";
+    if (!brandname.trim()) return "Brand Name is required.";
+
+    // Validate numeric fields
+    if (formData.stock < 0) {
+      return "Stock must be a non-negative number.";
+    }
+
+    if (
+      formData.ratings < 0 ||
+      formData.ratings > 5 ||
+      (formData.ratings !== 0 && isNaN(parseFloat(formData.ratings)))
+    ) {
+      return "Ratings must be between 0 and 5.";
+    }
+
+    // Conditional size validation based on category/gender
+    if (formData.category === "Shoes" && formData.size_shoes.length === 0) {
+      return "Please select at least one shoe size for shoes category.";
+    }
+    if (formData.gender === "kids" && formData.size_kids.length === 0) {
+      return "Please select at least one kid size for kids gender.";
+    }
+    // Only apply if not shoes and not kids, and if regular sizes are expected
+    if (
+      formData.category !== "Shoes" &&
+      formData.gender !== "kids" &&
+      formData.size.length === 0
+    ) {
+      // This is a more nuanced check. You might want to allow empty regular sizes for accessories, etc.
+      // For now, let's assume if it's not shoes/kids, it needs regular sizes.
+      // You can adjust this logic based on your exact product types.
+      if (
+        !["Wallets", "Belts", "Watches", "Sunglasses", "Bags", "Hats"].includes(
+          formData.category
+        )
+      ) {
+        return "Please select at least one regular size for this product.";
+      }
+    }
+
+    return null;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const { name, price, category, image, stock } = newProduct; // Include stock in destructuring
 
-    // Basic validation
-    if (!name || !price || !category || !image) {
-      setFormError('Name, price, category, and image URL are required');
+    const validationError = validateForm();
+    if (validationError) {
+      setFormError(validationError);
       return;
     }
-    if (parseFloat(price) <= 0) {
-      setFormError('Price must be greater than 0');
+
+    const token = getToken();
+    if (!token) {
+      setFormError("Admin authentication required. Please log in.");
       return;
-    }
-    // Add validation for stock if needed
-    if (stock !== '' && (isNaN(parseInt(stock)) || parseInt(stock) < 0)) {
-        setFormError('Stock must be a non-negative number');
-        return;
     }
 
     try {
-      const token = localStorage.getItem('trendify_admin_token');
-      const response = await fetch('http://localhost:5000/api/products/add', {
-        method: 'POST',
+      setLoading(true);
+      setFormError(null); // Clear previous form errors
+      const url = isEditing
+        ? `http://localhost:5000/api/products/${currentProduct._id}`
+        : "http://localhost:5000/api/products/add";
+      const method = isEditing ? "PUT" : "POST";
+
+      const productData = {
+        name: formData.name.trim(),
+        image: formData.image,
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock, 10),
+        size: formData.size,
+        size_shoes: formData.size_shoes,
+        size_kids: formData.size_kids,
+        category: formData.category,
+        gender: formData.gender,
+        color: formData.color.trim(),
+        brandname: formData.brandname.trim(),
+        ratings: parseFloat(formData.ratings),
+      };
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(newProduct),
+        body: JSON.stringify(productData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create product');
+      if (response.ok) {
+        const result = await response.json();
+        if (isEditing) {
+          setProducts((prev) =>
+            prev.map((p) => (p._id === result._id ? result : p))
+          );
+          alert("Product updated successfully!");
+        } else {
+          setProducts((prev) => [...prev, result]);
+          alert("Product added successfully!");
+        }
+        handleCloseModal(); // Close modal and reset form
+        fetchProducts(); // Re-fetch products to ensure list is up-to-date
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to ${isEditing ? "update" : "add"} product: ${response.statusText}`
+        );
       }
-
-      const createdProduct = await response.json();
-      setProducts([...products, createdProduct]);
-      setShowCreateForm(false);
-      setNewProduct({ name: '', price: '', category: '', image: '', stock: '' });
-      // After adding, ensure the new product is visible or go to the last page
-      setCurrentPage(Math.ceil((products.length + 1) / productsPerPage));
     } catch (err) {
+      console.error(`Error ${isEditing ? "updating" : "adding"} product:`, err);
       setFormError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handle delete product
-  const handleDelete = async (productId) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) return;
-
-    try {
-      const token = localStorage.getItem('trendify_admin_token');
-      const response = await fetch(`http://localhost:5000/api/products/${productId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete product');
-      }
-
-      setProducts(products.filter((product) => product._id !== productId));
-      // Adjust current page if the last product on a page was deleted
-      if (currentProducts.length === 1 && currentPage > 1) {
-          setCurrentPage(prev => prev - 1);
-      }
-    } catch (err) {
-      alert(`Error: ${err.message}`);
-    }
-  };
-
-  // Navigate to edit product page
-  const handleEdit = (productId) => {
-    navigate(`/superadmin/products/edit/${productId}`);
-  };
-
-  // --- Pagination Logic ---
+  // Pagination Logic
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
   const currentProducts = products.slice(indexOfFirstProduct, indexOfLastProduct);
@@ -172,243 +444,533 @@ export default function SuperAdminProducts() {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-  const renderPageNumbers = () => {
-    const pageNumbers = [];
-    // Show max 5 page numbers around the current page
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, currentPage + 2);
-
-    if (startPage > 1) {
-        pageNumbers.push(1);
-        if (startPage > 2) pageNumbers.push('...');
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pageNumbers.push(i);
-    }
-
-    if (endPage < totalPages) {
-        if (endPage < totalPages - 1) pageNumbers.push('...');
-        pageNumbers.push(totalPages);
-    }
-
-    return pageNumbers.map((number, index) => (
-      <li key={index} className="mx-1">
-        {number === '...' ? (
-          <span className="px-3 py-1 text-gray-500">...</span>
-        ) : (
-          <button
-            onClick={() => paginate(number)}
-            className={`px-3 py-1 border rounded ${
-              currentPage === number ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-100'
-            }`}
-          >
-            {number}
-          </button>
-        )}
-      </li>
-    ));
-  };
-
-
-  if (authLoading || loading) {
-    return <p className="text-center text-gray-500">Loading...</p>;
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-lg text-gray-600">Authenticating...</div>
+      </div>
+    );
   }
 
-  if (error) {
-    return <p className="text-center text-red-500">Error: {error}</p>;
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-lg text-red-600">
+          You need to be logged in as an admin to access this page.
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Superadmin Products</h2>
-
-      {/* Create Product Button */}
-      <div className="mb-6">
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">Product Management</h1>
         <button
-          onClick={() => setShowCreateForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+          onClick={handleOpenAddModal}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
-          Create Product
+          Add New Product
         </button>
       </div>
 
-      {/* Create Product Form Modal */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Add New Product</h2>
-            {formError && <p className="text-red-500 mb-4">{formError}</p>}
-            <form onSubmit={handleCreateProduct} className="space-y-4">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+
+      {loading && products.length === 0 ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg text-gray-600">Loading products...</div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          {/* Scrollable Table Container */}
+          <div className="overflow-x-auto max-h-[calc(100vh-250px)] overflow-y-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Product
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Brand
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Stock
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rating
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {currentProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                      {loading ? "Loading products..." : "No products found. Add a new product to get started!"}
+                    </td>
+                  </tr>
+                ) : (
+                  currentProducts.map((product) => (
+                    <tr key={product._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-12 w-12">
+                            {product.image ? (
+                              <img
+                                className="h-12 w-12 rounded-lg object-cover"
+                                src={product.image}
+                                alt={product.name}
+                              />
+                            ) : (
+                              <div className="h-12 w-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <span className="text-gray-500 text-xs">No IMG</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {product.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {product.color}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {product.brandname}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${product.price.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          {product.category}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {product.stock}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {product.ratings}/5
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => handleEditProduct(product)}
+                          className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(product._id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {products.length > productsPerPage && (
+            <nav className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => paginate(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => paginate(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing{" "}
+                    <span className="font-medium">
+                      {indexOfFirstProduct + 1}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-medium">
+                      {Math.min(indexOfLastProduct, products.length)}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium">
+                      {products.length}
+                    </span>{" "}
+                    results
+                  </p>
+                </div>
+                <div>
+                  <nav
+                    className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                    aria-label="Pagination"
+                  >
+                    <button
+                      onClick={() => paginate(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <span className="sr-only">Previous</span>
+                      {/* Heroicon name: solid/chevron-left */}
+                      <svg
+                        className="h-5 w-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <button
+                          key={page}
+                          onClick={() => paginate(page)}
+                          aria-current={currentPage === page ? "page" : undefined}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            currentPage === page
+                              ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                              : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    )}
+                    <button
+                      onClick={() => paginate(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <span className="sr-only">Next</span>
+                      {/* Heroicon name: solid/chevron-right */}
+                      <svg
+                        className="h-5 w-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </nav>
+          )}
+        </div>
+      )}
+
+      {/* Create/Edit Product Modal */}
+      <Modal
+        isOpen={showAddProductModal}
+        onClose={handleCloseModal}
+        title={isEditing ? "Edit Product" : "Add New Product"}
+      >
+        {formError && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {formError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Required Fields Section */}
+          <div className="bg-red-50 p-4 rounded-lg">
+            <h4 className="text-lg font-semibold text-red-800 mb-4">
+              Required Information
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1 font-medium">Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Name *
+                </label>
                 <input
                   type="text"
                   name="name"
-                  value={newProduct.name}
+                  value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter product name"
                   required
                 />
               </div>
+
               <div>
-                <label className="block mb-1 font-medium">Price</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Price *
+                </label>
                 <input
                   type="number"
                   name="price"
-                  value={newProduct.price}
+                  value={formData.price}
                   onChange={handleInputChange}
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
                   min="0"
                   step="0.01"
+                  required
                 />
               </div>
+
               <div>
-                <label className="block mb-1 font-medium">Category</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category *
+                </label>
+                <select
                   name="category"
-                  value={newProduct.category}
+                  value={formData.category}
                   onChange={handleInputChange}
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
-                />
+                >
+                  <option value="">Select Category</option>
+                  {categoryOptions.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
               </div>
+
               <div>
-                <label className="block mb-1 font-medium">Image Filename (e.g., tshirt1.webp or images/tshirt1.webp)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gender *
+                </label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Select Gender</option>
+                  {genderOptions.map((gender) => (
+                    <option key={gender} value={gender}>
+                      {gender.charAt(0).toUpperCase() + gender.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Color *
+                </label>
                 <input
                   type="text"
-                  name="image"
-                  value={newProduct.image}
+                  name="color"
+                  value={formData.color}
                   onChange={handleInputChange}
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Red, Blue, Black"
                   required
                 />
               </div>
+
               <div>
-                <label className="block mb-1 font-medium">Stock</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Brand Name *
+                </label>
+                <input
+                  type="text"
+                  name="brandname"
+                  value={formData.brandname}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter brand name"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Product Image *
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {imagePreview && (
+                <div className="mt-2">
+                  <img
+                    src={imagePreview}
+                    alt="Product Preview"
+                    className="w-32 h-32 object-cover rounded-md border border-gray-200"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Optional Fields Section */}
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h4 className="text-lg font-semibold text-blue-800 mb-4">
+              Optional Information
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Stock
+                </label>
                 <input
                   type="number"
                   name="stock"
-                  value={newProduct.stock}
+                  value={formData.stock}
                   onChange={handleInputChange}
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   min="0"
                 />
               </div>
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateForm(false);
-                    setFormError(null);
-                    setNewProduct({ name: '', price: '', category: '', image: '', stock: '' });
-                  }}
-                  className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                >
-                  Create
-                </button>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ratings (0-5)
+                </label>
+                <input
+                  type="number"
+                  name="ratings"
+                  value={formData.ratings}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                />
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Products Table */}
-      {products.length === 0 ? (
-        <p className="text-gray-500">No products found.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white shadow-md rounded-lg">
-            <thead>
-              <tr className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-                <th className="py-3 px-6 text-left">Image</th>
-                <th className="py-3 px-6 text-left">Name</th>
-                <th className="py-3 px-6 text-left">Price</th>
-                <th className="py-3 px-6 text-left">Category</th>
-                <th className="py-3 px-6 text-left">Stock</th>
-                <th className="py-3 px-6 text-left">Ratings</th>
-                <th className="py-3 px-6 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="text-gray-600 text-sm font-light">
-              {currentProducts.map((product) => ( // Using currentProducts for pagination
-                <tr key={product._id} className="border-b border-gray-200 hover:bg-gray-100">
-                  <td className="py-3 px-6 text-left">
-                    <img
-                      src={getImageUrl(product.image)}
-                      alt={product.name}
-                      className="w-12 h-12 object-cover rounded"
-                      onError={(e) => {
-                        console.error('Image failed to load:', e.target.src);
-                        e.target.src = 'https://via.placeholder.com/50';
-                      }}
-                      loading="lazy" // Added for lazy loading images
+          {/* Size Selection Section */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">
+              Size Options
+            </h4>
+
+            {/* Regular Sizes */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Regular Sizes
+              </label>
+              <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                {sizeOptions.map((size) => (
+                  <label key={size} className="flex items-center space-x-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.size.includes(size)}
+                      onChange={() => handleSizeChange("size", size)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                  </td>
-                  <td className="py-3 px-6 text-left whitespace-nowrap">{product.name}</td>
-                  <td className="py-3 px-6 text-left">${parseFloat(product.price).toFixed(2)}</td>
-                  <td className="py-3 px-6 text-left">{product.category}</td>
-                  <td className="py-3 px-6 text-left">{product.stock || 0}</td>
-                  <td className="py-3 px-6 text-left">{product.ratings || 0}</td>
-                  <td className="py-3 px-6 text-center">
-                    <button
-                      onClick={() => handleEdit(product._id)}
-                      className="text-blue-600 hover:text-blue-800 mr-4"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product._id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                    <span className="text-sm">{size}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
 
-      {/* Pagination Controls */}
-      {products.length > productsPerPage && (
-        <nav className="flex justify-center mt-6">
-          <ul className="flex items-center space-x-2">
-            <li>
-              <button
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-3 py-1 border rounded ${
-                  currentPage === 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-white text-blue-600 hover:bg-blue-100'
-                }`}
-              >
-                Previous
-              </button>
-            </li>
-            {renderPageNumbers()}
-            <li>
-              <button
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-3 py-1 border rounded ${
-                  currentPage === totalPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-white text-blue-600 hover:bg-blue-100'
-                }`}
-              >
-                Next
-              </button>
-            </li>
-          </ul>
-        </nav>
-      )}
+            {/* Shoe Sizes */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Shoe Sizes
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {sizeShoesOptions.map((size) => (
+                  <label key={size} className="flex items-center space-x-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.size_shoes.includes(size)}
+                      onChange={() => handleSizeChange("size_shoes", size)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm">{size}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Kids Sizes */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Kids Sizes
+              </label>
+              <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                {sizeKidsOptions.map((size) => (
+                  <label key={size} className="flex items-center space-x-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.size_kids.includes(size)}
+                      onChange={() => handleSizeChange("size_kids", size)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm">{size}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-end space-x-4 pt-6 border-t">
+            <button
+              type="button"
+              onClick={handleCloseModal} // Use handleCloseModal to reset and close
+              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {loading
+                ? isEditing
+                  ? "Updating..."
+                  : "Creating..."
+                : isEditing
+                ? "Update Product"
+                : "Create Product"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

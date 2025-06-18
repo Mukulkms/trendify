@@ -1,42 +1,111 @@
-const express = require("express");
-const { getProducts, addProduct, deleteProduct, updateProduct } = require("../controllers/productController");
-const { protect, adminOnly } = require("../middleware/authMiddleware");
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const express = require("express"); // <--- REQUIRED: Import express
+const Product = require("../models/Product"); // <--- Ensure this path is correct
 
-const router = express.Router();
+const router = express.Router(); // <--- REQUIRED: Initialize the router
 
-// Middleware to ensure superadmin access
-const protectSuperAdmin = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'No token provided' });
-  }
-
-  const token = authHeader.split(' ')[1];
+// GET all products
+router.get("/", async (req, res) => { // Removed middleware
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password');
-    if (!user || user.role !== 'super-admin') {
-      return res.status(403).json({ message: 'Unauthorized: Superadmin access required' });
-    }
-    req.user = user;
-    next();
+    const products = await Product.find();
+    res.json(products);
   } catch (err) {
-    return res.status(401).json({ message: 'Invalid token' });
+    console.error("Error fetching products:", err); // Better error logging
+    res.status(500).json({ error: err.message });
   }
-};
+});
 
-// GET all products (no auth required as per your setup)
-router.get("/", getProducts);
+// POST add product
+router.post("/add", async (req, res) => { // Removed middleware
+  try {
+    console.log('Received product data:', req.body); // Debug log
 
-// POST add product (superadmin only)
-router.post("/add", protectSuperAdmin, addProduct);
+    // Basic check for required fields, Mongoose schema will also validate
+    if (!req.body.name || !req.body.brandname || !req.body.color || !req.body.gender || !req.body.price || !req.body.category) {
+        return res.status(400).json({ message: "Missing required product fields." });
+    }
 
-// DELETE a product (superadmin only)
-router.delete("/:id", protectSuperAdmin, deleteProduct);
+    const newProduct = new Product(req.body);
+    const savedProduct = await newProduct.save(); // Using const savedProduct
+    res.status(201).json(savedProduct); // Sending the saved product
+  } catch (err) {
+    console.error('Product creation error:', err); // Log full error for more details
+    // Handle Mongoose validation errors specifically
+    if (err.name === 'ValidationError') {
+        const errors = Object.keys(err.errors).map(key => err.errors[key].message);
+        return res.status(400).json({ error: "Product validation failed", messages: errors.join(', ') });
+    }
+    res.status(500).json({ error: err.message || 'Server error' });
+  }
+});
 
-// PUT update a product (superadmin only)
-router.put("/:id", protectSuperAdmin, updateProduct);
+// PUT update product by ID (for editing)
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params; // Get the product ID from the URL parameters
+    console.log(`Received product data for update (ID: ${id}):`, req.body); // Debug log
 
-module.exports = router;
+    // Option 1: Basic validation for update. Mongoose schema will handle deeper validation.
+    if (
+      !req.body.name ||
+      !req.body.brandname ||
+      !req.body.color ||
+      !req.body.gender ||
+      !req.body.price ||
+      !req.body.category
+    ) {
+      return res.status(400).json({ message: "Missing required product fields for update." });
+    }
+
+    // Find the product by ID and update it.
+    // `new: true` returns the updated document.
+    // `runValidators: true` runs schema validators on update.
+    const updatedProduct = await Product.findByIdAndUpdate(id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found." });
+    }
+
+    res.status(200).json(updatedProduct); // Send back the updated product
+  } catch (err) {
+    console.error("Product update error:", err);
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Invalid Product ID format." });
+    }
+    if (err.name === "ValidationError") {
+      const errors = Object.keys(err.errors).map((key) => err.errors[key].message);
+      return res
+        .status(400)
+        .json({ error: "Product validation failed during update", messages: errors.join(", ") });
+    }
+    res.status(500).json({ error: err.message || "Server error during update" });
+  }
+});
+
+// ---
+
+// DELETE product by ID
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params; // Get the product ID from the URL parameters
+    console.log(`Received request to delete product with ID: ${id}`); // Debug log
+
+    const deletedProduct = await Product.findByIdAndDelete(id);
+
+    if (!deletedProduct) {
+      return res.status(404).json({ message: "Product not found." });
+    }
+
+    res.status(200).json({ message: "Product deleted successfully.", deletedProduct });
+  } catch (err) {
+    console.error("Product deletion error:", err);
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Invalid Product ID format." });
+    }
+    res.status(500).json({ error: err.message || "Server error during deletion" });
+  }
+});
+
+module.exports = router; // <--- Correct: Export only the router

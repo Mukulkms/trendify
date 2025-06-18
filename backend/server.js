@@ -5,23 +5,22 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const passport = require("passport");
-require("./config/passport");
 const path = require('path');
 
+require("./config/passport");
 dotenv.config();
 
 const app = express();
 
 console.log("MONGO_URI:", process.env.MONGO_URI);
 
-// Basic middleware first
-app.use(express.json());
+// ✅ Fix: Increased request body size limit
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 
 app.use('/images', express.static(path.join(__dirname, 'public', 'assets', 'images')));
-
-
 
 // Session middleware
 app.use(
@@ -51,17 +50,14 @@ app.use(passport.session());
 const adminVendorAuthRoutes = require('./routes/adminVendorAuth');
 app.use('/api/admin-vendor-auth', adminVendorAuthRoutes);
 
-
 const superAdminRoutes = require('./routes/superAdminRoutes');
 app.use('/api/superadmin', superAdminRoutes);
 
-const superAdminAuthModule = require('./routes/superAdminAuthRoutes'); 
+const superAdminAuthModule = require('./routes/superAdminAuthRoutes');
 app.use('/api/superadmin-auth', superAdminAuthModule.router);
 
-
-
 const productRoutes = require("./routes/productRoutes");
-app.use("/api/products", productRoutes);
+app.use("/api/products",productRoutes)
 
 const paymentRoutes = require("./routes/paymentRoutes");
 app.use("/api/payment", paymentRoutes);
@@ -81,12 +77,12 @@ app.use("/auth/facebook", facebookAuthRoutes);
 const googleAuthRoutes = require("./routes/googleAuth");
 app.use("/api/auth/google", googleAuthRoutes);
 
-// Catch-all for 404 errors (should be after all valid routes)
+// Catch-all for 404 errors
 app.use((req, res, next) => {
   res.status(404).json({ message: `Route ${req.originalUrl} not found` });
 });
 
-// Error handling middleware (should be the last middleware)
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!', error: err.message });
