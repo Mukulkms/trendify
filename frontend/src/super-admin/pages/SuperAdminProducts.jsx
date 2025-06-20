@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth2 } from "../AuthContext2"; // Assuming this path is correct
+import { uploadToCloudinary } from "../utils/uploadToCloudinary"; // make sure this path is correct
 
 // A simple reusable modal component
 const Modal = ({ isOpen, onClose, children, title }) => {
@@ -53,6 +54,7 @@ export default function ProductManagement() {
 
   const [formData, setFormData] = useState({
     name: "",
+    description: "", // Added description field
     image: "", // Base64 string for image
     price: "",
     stock: 0,
@@ -163,7 +165,8 @@ export default function ProductManagement() {
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Failed to fetch products: ${response.statusText}`
+          errorData.message ||
+            `Failed to fetch products: ${response.statusText}`
         );
       }
     } catch (err) {
@@ -192,26 +195,36 @@ export default function ProductManagement() {
     }));
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageData = e.target.result;
-        setImagePreview(imageData);
-        setFormData((prev) => ({
-          ...prev,
-          image: imageData, // This will be the base64 string
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-    setFormError(null); // Clear form error on image upload
-  };
+const handleImageUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  setFormError(null); // Clear any previous error
+
+  try {
+    // Optional: Show a loading preview before upload completes
+    const previewURL = URL.createObjectURL(file);
+    setImagePreview(previewURL);
+
+    // Upload to Cloudinary and get hosted URL
+    const cloudinaryUrl = await uploadToCloudinary(file);
+
+    // Store Cloudinary URL in form state
+    setFormData((prev) => ({
+      ...prev,
+      image: cloudinaryUrl,
+    }));
+  } catch (err) {
+    console.error("Image upload error:", err);
+    setFormError("Image upload failed. Please try again.");
+  }
+};
+
 
   const resetForm = () => {
     setFormData({
       name: "",
+      description: "", // Reset description field
       image: "",
       price: "",
       stock: 0,
@@ -245,6 +258,7 @@ export default function ProductManagement() {
     setCurrentProduct(product);
     setFormData({
       name: product.name || "",
+      description: product.description || "", // Set description field
       image: product.image || "", // Use existing image if present
       price: product.price ? product.price.toString() : "", // Convert number to string for input
       stock: product.stock || 0,
@@ -306,10 +320,20 @@ export default function ProductManagement() {
 
   // Validate form data
   const validateForm = () => {
-    const { name, price, category, gender, color, brandname, image } = formData;
+    const {
+      name,
+      price,
+      category,
+      gender,
+      color,
+      brandname,
+      image,
+      description,
+    } = formData;
 
     // Check required fields
     if (!name.trim()) return "Product Name is required.";
+    if (!description.trim()) return "Product Description is required."; // Add this validation
     if (!image) return "Product Image is required. Please upload an image.";
 
     const parsedPrice = parseFloat(price);
@@ -361,6 +385,7 @@ export default function ProductManagement() {
     return null;
   };
 
+  // Updated handleSubmit function to properly handle description
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -386,6 +411,7 @@ export default function ProductManagement() {
 
       const productData = {
         name: formData.name.trim(),
+        description: formData.description.trim(), // Ensure description is trimmed but not empty
         image: formData.image,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock, 10),
@@ -398,6 +424,12 @@ export default function ProductManagement() {
         brandname: formData.brandname.trim(),
         ratings: parseFloat(formData.ratings),
       };
+
+      // Additional check to ensure description is not empty after trimming
+      if (!productData.description) {
+        setFormError("Product Description cannot be empty.");
+        return;
+      }
 
       const response = await fetch(url, {
         method: method,
@@ -424,7 +456,10 @@ export default function ProductManagement() {
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || `Failed to ${isEditing ? "update" : "add"} product: ${response.statusText}`
+          errorData.message ||
+            `Failed to ${isEditing ? "update" : "add"} product: ${
+              response.statusText
+            }`
         );
       }
     } catch (err) {
@@ -438,7 +473,10 @@ export default function ProductManagement() {
   // Pagination Logic
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = products.slice(indexOfFirstProduct, indexOfLastProduct);
+  const currentProducts = products.slice(
+    indexOfFirstProduct,
+    indexOfLastProduct
+  );
 
   const totalPages = Math.ceil(products.length / productsPerPage);
 
@@ -517,8 +555,13 @@ export default function ProductManagement() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentProducts.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
-                      {loading ? "Loading products..." : "No products found. Add a new product to get started!"}
+                    <td
+                      colSpan="7"
+                      className="px-6 py-4 text-center text-gray-500"
+                    >
+                      {loading
+                        ? "Loading products..."
+                        : "No products found. Add a new product to get started!"}
                     </td>
                   </tr>
                 ) : (
@@ -535,7 +578,9 @@ export default function ProductManagement() {
                               />
                             ) : (
                               <div className="h-12 w-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                                <span className="text-gray-500 text-xs">No IMG</span>
+                                <span className="text-gray-500 text-xs">
+                                  No IMG
+                                </span>
                               </div>
                             )}
                           </div>
@@ -617,10 +662,7 @@ export default function ProductManagement() {
                     <span className="font-medium">
                       {Math.min(indexOfLastProduct, products.length)}
                     </span>{" "}
-                    of{" "}
-                    <span className="font-medium">
-                      {products.length}
-                    </span>{" "}
+                    of <span className="font-medium">{products.length}</span>{" "}
                     results
                   </p>
                 </div>
@@ -655,7 +697,9 @@ export default function ProductManagement() {
                         <button
                           key={page}
                           onClick={() => paginate(page)}
-                          aria-current={currentPage === page ? "page" : undefined}
+                          aria-current={
+                            currentPage === page ? "page" : undefined
+                          }
                           className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                             currentPage === page
                               ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
@@ -746,6 +790,20 @@ export default function ProductManagement() {
                   required
                 />
               </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Description *
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter product description"
+                  required
+                />
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -797,7 +855,7 @@ export default function ProductManagement() {
                   value={formData.color}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Red, Blue, Black"
+                  placeholder="Enter color"
                   required
                 />
               </div>
@@ -816,40 +874,55 @@ export default function ProductManagement() {
                   required
                 />
               </div>
-            </div>
 
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Product Image *
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-              {imagePreview && (
-                <div className="mt-2">
-                  <img
-                    src={imagePreview}
-                    alt="Product Preview"
-                    className="w-32 h-32 object-cover rounded-md border border-gray-200"
-                  />
-                </div>
-              )}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Image *
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required={!isEditing}
+                />
+                {imagePreview && (
+                  <div className="mt-2">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="h-20 w-20 object-cover rounded-md"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Optional Fields Section */}
           <div className="bg-blue-50 p-4 rounded-lg">
             <h4 className="text-lg font-semibold text-blue-800 mb-4">
-              Optional Information
+              Additional Information
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter product description"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Stock
+                  Stock Quantity
                 </label>
                 <input
                   type="number"
@@ -857,6 +930,7 @@ export default function ProductManagement() {
                   value={formData.stock}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0"
                   min="0"
                 />
               </div>
@@ -871,6 +945,7 @@ export default function ProductManagement() {
                   value={formData.ratings}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0"
                   min="0"
                   max="5"
                   step="0.1"
@@ -880,93 +955,108 @@ export default function ProductManagement() {
           </div>
 
           {/* Size Selection Section */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">
+          <div className="bg-green-50 p-4 rounded-lg">
+            <h4 className="text-lg font-semibold text-green-800 mb-4">
               Size Options
             </h4>
 
             {/* Regular Sizes */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Regular Sizes
-              </label>
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-                {sizeOptions.map((size) => (
-                  <label key={size} className="flex items-center space-x-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.size.includes(size)}
-                      onChange={() => handleSizeChange("size", size)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm">{size}</span>
-                  </label>
-                ))}
+            {formData.category !== "Shoes" && formData.gender !== "kids" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Regular Sizes
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {sizeOptions.map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => handleSizeChange("size", size)}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        formData.size.includes(size)
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Shoe Sizes */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Shoe Sizes
-              </label>
-              <div className="grid grid-cols-5 gap-2">
-                {sizeShoesOptions.map((size) => (
-                  <label key={size} className="flex items-center space-x-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.size_shoes.includes(size)}
-                      onChange={() => handleSizeChange("size_shoes", size)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm">{size}</span>
-                  </label>
-                ))}
+            {formData.category === "Shoes" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Shoe Sizes
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {sizeShoesOptions.map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => handleSizeChange("size_shoes", size)}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        formData.size_shoes.includes(size)
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Kids Sizes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Kids Sizes
-              </label>
-              <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-                {sizeKidsOptions.map((size) => (
-                  <label key={size} className="flex items-center space-x-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.size_kids.includes(size)}
-                      onChange={() => handleSizeChange("size_kids", size)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm">{size}</span>
-                  </label>
-                ))}
+            {formData.gender === "kids" && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kids Sizes
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {sizeKidsOptions.map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => handleSizeChange("size_kids", size)}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        formData.size_kids.includes(size)
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Form Actions */}
           <div className="flex justify-end space-x-4 pt-6 border-t">
             <button
               type="button"
-              onClick={handleCloseModal} // Use handleCloseModal to reset and close
-              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              onClick={handleCloseModal}
+              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading
                 ? isEditing
                   ? "Updating..."
-                  : "Creating..."
+                  : "Adding..."
                 : isEditing
                 ? "Update Product"
-                : "Create Product"}
+                : "Add Product"}
             </button>
           </div>
         </form>
