@@ -72,10 +72,10 @@ const authRoutes = require("./routes/authRoutes");
 app.use("/api/auth", authRoutes);
 
 const facebookAuthRoutes = require("./routes/facebookAuth");
-app.use("/auth/facebook", facebookAuthRoutes);
+app.use("/auth", facebookAuthRoutes);
 
 const googleAuthRoutes = require("./routes/googleAuth");
-app.use("/api/auth/google", googleAuthRoutes);
+app.use("/api/auth", googleAuthRoutes);
 
 // Catch-all for 404 errors
 app.use((req, res, next) => {
