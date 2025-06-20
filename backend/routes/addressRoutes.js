@@ -3,7 +3,7 @@ const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const Address = require('../models/Address');
 const { body, validationResult } = require('express-validator');
-
+ 
 // Validation middleware for address fields
 const addressValidationRules = [
   body('fullName').notEmpty().withMessage('Full name is required'),
@@ -26,7 +26,7 @@ const addressValidationRules = [
     .withMessage('Pincode must contain only numbers'),
   body('country').notEmpty().withMessage('Country is required'),
 ];
-
+ 
 // Get all addresses for the logged-in user
 router.get('/', protect, async (req, res) => {
   try {
@@ -36,24 +36,24 @@ router.get('/', protect, async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch addresses', error: err.message });
   }
 });
-
+ 
 // Add a new address
 router.post('/', protect, addressValidationRules, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
   }
-
+ 
   try {
     const { fullName, mobileNumber, fullAddress, city, state, pincode, country, isDefault } = req.body;
-
+ 
     if (isDefault) {
       await Address.updateMany(
         { userId: req.user.id, isDefault: true },
         { $set: { isDefault: false } }
       );
     }
-
+ 
     const address = new Address({
       userId: req.user.id,
       fullName,
@@ -71,7 +71,7 @@ router.post('/', protect, addressValidationRules, async (req, res) => {
     res.status(500).json({ message: 'Failed to save address', error: err.message });
   }
 });
-
+ 
 // Update an existing address
 router.put('/:id', protect, addressValidationRules, async (req, res) => {
   console.log(`PUT /api/addresses/${req.params.id} called by user:`, req.user?.id);
@@ -79,7 +79,7 @@ router.put('/:id', protect, addressValidationRules, async (req, res) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
   }
-
+ 
   try {
     const address = await Address.findById(req.params.id);
     if (!address) {
@@ -90,16 +90,16 @@ router.put('/:id', protect, addressValidationRules, async (req, res) => {
       console.log(`Unauthorized access attempt by user ${req.user.id} for address ${req.params.id}`);
       return res.status(403).json({ message: 'Unauthorized to update this address' });
     }
-
+ 
     const { fullName, mobileNumber, fullAddress, city, state, pincode, country, isDefault } = req.body;
-
+ 
     if (isDefault) {
       await Address.updateMany(
         { userId: req.user.id, isDefault: true },
         { $set: { isDefault: false } }
       );
     }
-
+ 
     address.fullName = fullName;
     address.mobileNumber = mobileNumber;
     address.fullAddress = fullAddress;
@@ -108,7 +108,7 @@ router.put('/:id', protect, addressValidationRules, async (req, res) => {
     address.pincode = pincode;
     address.country = country;
     address.isDefault = isDefault || false;
-
+ 
     const updatedAddress = await address.save();
     res.status(200).json(updatedAddress);
   } catch (err) {
@@ -116,7 +116,7 @@ router.put('/:id', protect, addressValidationRules, async (req, res) => {
     res.status(500).json({ message: 'Failed to update address', error: err.message });
   }
 });
-
+ 
 // Validate pincode
 router.post('/validate-pincode', protect, async (req, res) => {
   try {
@@ -129,5 +129,5 @@ router.post('/validate-pincode', protect, async (req, res) => {
     res.status(500).json({ message: 'Failed to validate pincode', error: err.message });
   }
 });
-
+ 
 module.exports = router;

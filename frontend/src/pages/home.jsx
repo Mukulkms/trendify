@@ -19,7 +19,7 @@ export default function HomePage() {
     if (token && !localStorage.getItem("trendify_token")) {
       localStorage.setItem("trendify_token", token);
       // Clean up the token from the URL after setting it
-      navigate("/home", { replace: true });
+      navigate("/", { replace: true });
     }
   }, [location, navigate]);
 

@@ -1,57 +1,8 @@
 // src/super-admin/components/DashboardOverview.jsx
-import React from 'react';
 
 const DashboardOverview = () => {
     return (
-        <div className="p-6">
-            <h2 className="text-2xl font-bold mb-6">Dashboard Overview</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {/* Total Sales Card */}
-                <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-500">Total Sales</p>
-                        <p className="text-2xl font-semibold">$8,245.00</p>
-                        <p className="text-xs text-green-500">↑ +0.5% from last week</p>
-                    </div>
-                    <div className="bg-green-100 p-2 rounded-full">
-                        <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                    </div>
-                </div>
-                {/* Total Order Card */}
-                <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-500">Total Order</p>
-                        <p className="text-2xl font-semibold">1,256</p>
-                        <p className="text-xs text-red-500">↓ -1.0% from last week</p>
-                    </div>
-                    <div className="bg-red-100 p-2 rounded-full">
-                        <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zm-1 11a1 1 0 100-2h2a1 1 0 100 2h-2z" clipRule="evenodd"></path></svg>
-                    </div>
-                </div>
-                {/* Net Sales Card */}
-                <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-500">Net Sales</p>
-                        <p className="text-2xl font-semibold">$431.00</p>
-                        <p className="text-xs text-green-500">↑ +1.0% from last week</p>
-                    </div>
-                    <div className="bg-green-100 p-2 rounded-full">
-                        <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zm0 7a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zm0 7a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1z"></path></svg>
-                    </div>
-                </div>
-                {/* Total Variant Card */}
-                <div className="bg-white p-4 rounded-lg shadow-md flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-500">Total Variant</p>
-                        <p className="text-2xl font-semibold">456K</p>
-                        <p className="text-xs text-green-500">↑ +2.5% from last week</p>
-                    </div>
-                    <div className="bg-green-100 p-2 rounded-full">
-                        <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zm0 7a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1zm0 7a1 1 0 00-1 1v1a1 1 0 002 0v-1a1 1 0 00-1-1z"></path></svg>
-                    </div>
-                </div>
-            </div>
-
+        <div className="">           
             {/* Total Order Overview & Statistics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white p-6 rounded-lg shadow-md">

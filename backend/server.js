@@ -5,14 +5,22 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const passport = require("passport");
-require("./config/passport");
+const path = require('path');
 
+require("./config/passport");
 dotenv.config();
 
 const app = express();
 
-// Debugging: Check if MONGO_URI is loaded
 console.log("MONGO_URI:", process.env.MONGO_URI);
+
+// ✅ Fix: Increased request body size limit
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(cookieParser());
+app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+
+app.use('/images', express.static(path.join(__dirname, 'public', 'assets', 'images')));
 
 // Session middleware
 app.use(
@@ -22,10 +30,6 @@ app.use(
     saveUninitialized: false,
   })
 );
-
-app.use(express.json());
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
-app.use(cookieParser());
 
 // Database Connection
 mongoose
@@ -44,13 +48,16 @@ app.use(passport.session());
 
 // API Routes
 const adminVendorAuthRoutes = require('./routes/adminVendorAuth');
-app.use('/api', adminVendorAuthRoutes);
+app.use('/api/admin-vendor-auth', adminVendorAuthRoutes);
 
 const superAdminRoutes = require('./routes/superAdminRoutes');
 app.use('/api/superadmin', superAdminRoutes);
 
+const superAdminAuthModule = require('./routes/superAdminAuthRoutes');
+app.use('/api/superadmin-auth', superAdminAuthModule.router);
+
 const productRoutes = require("./routes/productRoutes");
-app.use("/api/products", productRoutes);
+app.use("/api/products",productRoutes)
 
 const paymentRoutes = require("./routes/paymentRoutes");
 app.use("/api/payment", paymentRoutes);
@@ -58,14 +65,17 @@ app.use("/api/payment", paymentRoutes);
 const addressRoutes = require("./routes/addressRoutes");
 app.use("/api/addresses", addressRoutes);
 
+const orderRoutes = require("./routes/orderRoutes");
+app.use("/api/orders", orderRoutes);
+
 const authRoutes = require("./routes/authRoutes");
 app.use("/api/auth", authRoutes);
 
 const facebookAuthRoutes = require("./routes/facebookAuth");
-app.use("/auth/facebook", facebookAuthRoutes); // Changed path to avoid conflict
+app.use("/auth", facebookAuthRoutes);
 
 const googleAuthRoutes = require("./routes/googleAuth");
-app.use("/api/auth/google", googleAuthRoutes); // Changed path to avoid conflict
+app.use("/api/auth", googleAuthRoutes);
 
 // Catch-all for 404 errors
 app.use((req, res, next) => {

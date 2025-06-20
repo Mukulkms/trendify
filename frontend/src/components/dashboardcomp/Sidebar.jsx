@@ -14,8 +14,6 @@ const Sidebar = () => {
     { name: 'My Orders', icon: <FaShoppingBag />, path: '/dashboard/orders' },
     { name: 'My Addresses', icon: <FaMapMarkerAlt />, path: '/dashboard/addresses' },
     { name: 'My Profile', icon: <FaUser />, path: '/dashboard/profile' },
-    // You can add more sidebar links here for help, wishlist, reviews etc.
-    // { name: 'My Wishlist', icon: <FaHeart />, path: '/dashboard/wishlist' },
   ];
 
   const handleLogout = () => {

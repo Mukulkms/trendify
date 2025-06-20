@@ -4,7 +4,7 @@ const router = express.Router();
 const Razorpay = require('razorpay');
 const { protect } = require('../middleware/authMiddleware'); // Ensure correct path
 const crypto = require('crypto'); // Node's built-in crypto module
-
+const Order = require('../models/order'); // Make sure path is correct
 // Initialize Razorpay instance
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,

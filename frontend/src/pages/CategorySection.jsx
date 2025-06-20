@@ -16,7 +16,7 @@ const categories = [
   { name: "Accessories", image: accessories },
   { name: "Heavy Duty", image: heavy },
   { name: "Sneakers", image: sneakers },
-  { name: "New Arrival", image: newarrival },
+  { name: "New Arrivals", image: newarrival },
 ];
 
 const CategoryCard = memo(({ category }) => (

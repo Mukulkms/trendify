@@ -85,9 +85,8 @@ export default function RegisterForm() {
         setError(otpData.message || "OTP sending failed. Please try logging in.");
         return;
       }
-  
-      alert("✅ OTP sent to your mobile. Proceeding to verification...");
-      navigate("/verify-otp", { state: { mobileNumber } });
+
+      navigate("/login");
     } catch (err) {
       console.error("❌ Error in registration:", err);
       setError("Something went wrong. Please try again later.");

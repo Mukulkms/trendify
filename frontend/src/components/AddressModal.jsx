@@ -157,11 +157,33 @@ const AddressModal = ({
       // userId: currentUser?._id, // Generally handled by auth middleware on backend
     };
 
-    const url =
-      mode === "add"
-        ? "http://localhost:5000/api/addresses"
-        : `http://localhost:5000/api/addresses/${addressToEdit._id}`;
-    const method = mode === "add" ? "POST" : "PUT";
+    // Debug logging to help identify the issue
+    console.log("Mode:", mode);
+    console.log("AddressToEdit:", addressToEdit);
+    console.log("ShowForm:", showForm);
+
+    // Fix: Handle different scenarios more comprehensively
+    let url, method;
+    if (mode === "add" || (mode === "select" && showForm)) {
+      // Adding new address (either direct add mode or adding from select mode)
+      url = "http://localhost:5000/api/addresses";
+      method = "POST";
+    } else if (mode === "edit") {
+      if (!addressToEdit || !addressToEdit._id) {
+        console.error("Edit mode requires valid addressToEdit with _id");
+        setError("Invalid address data for editing. Please try again.");
+        setLoading(false);
+        return;
+      }
+      url = `http://localhost:5000/api/addresses/${addressToEdit._id}`;
+      method = "PUT";
+    } else {
+      // Handle unexpected scenarios
+      console.error("Unexpected mode or state:", { mode, showForm, addressToEdit });
+      setError("Invalid operation mode. Please try again.");
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch(url, {
@@ -192,13 +214,16 @@ const AddressModal = ({
       }
 
       const data = await response.json();
-      alert(`Address ${mode === "add" ? "added" : "updated"} successfully!`);
+      
+      // More specific success message
+      const successMessage = method === "POST" ? "Address added successfully!" : "Address updated successfully!";
+      alert(successMessage);
 
       // Trigger the parent's callback to refresh addresses (for MyAddressesPage)
       // or select the new address (for AddressSelectionPage in 'add' scenario)
       if (onAddressSubmit) {
         onAddressSubmit(data);
-      } else if (onAddressSelect && mode === "add") {
+      } else if (onAddressSelect && (mode === "add" || (mode === "select" && showForm))) {
         // For AddressSelectionPage adding a new address
         onAddressSelect(data);
       }
