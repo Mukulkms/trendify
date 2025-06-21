@@ -24,14 +24,7 @@ export default function Header() {
   const searchRef = useRef(null);
   const searchResultsRef = useRef(null);
 
-  console.log(
-    "Header rendered - dropdown state:",
-    dropdown,
-    "user:",
-    user,
-    "loading:",
-    loading
-  );
+ 
 
   // Category mapping for navigation
   const categoryRoutes = {
@@ -89,7 +82,6 @@ export default function Header() {
       
       setShowSearchResults(true);
     } catch (error) {
-      console.error('Search error:', error);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -129,13 +121,6 @@ export default function Header() {
     setSearchQuery("");
   };
 
-  // Handle category suggestion click
-  const handleCategorySuggestionClick = (category) => {
-    const route = categoryRoutes[category] || "products";
-    navigate(`/${route}?category=${encodeURIComponent(category)}`);
-    setShowSearchResults(false);
-    setSearchQuery("");
-  };
 
   // Close search results when clicking outside
   useEffect(() => {
@@ -168,7 +153,6 @@ export default function Header() {
     ) {
       return;
     }
-    console.log("Mouse entered user area");
     setDropdown(true);
   };
 
@@ -179,7 +163,6 @@ export default function Header() {
     ) {
       return;
     }
-    console.log("Mouse left user area");
     setDropdown(false);
   };
 
