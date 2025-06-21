@@ -34,17 +34,9 @@ router.post('/create', protect, async (req, res) => {
         return res.status(400).json({ message: 'User data (fullname, email, mobileNumber) is missing or incomplete in your profile. Please update your profile or contact support.' });
     }
 
-    // --- START OF RECEIPT FIX ---
-    // The previous receipt: `receipt_${Date.now()}_${req.user._id}` was too long.
-    // Razorpay's 'receipt' field has a maximum length of 40 characters.
-    // We'll create a shorter, still unique and identifiable receipt.
-    // Get the last 8 characters of the user ID (enough for good identification)
+    
     const userIdSuffix = req.user._id.toString().slice(-8);
-    // Get the last 8 characters of the current timestamp (to ensure uniqueness)
     const shortTimestamp = Date.now().toString().slice(-8);
-
-    // Combine them into a new receipt string.
-    // Example: "rcpt_12345678_abcdefgh" (Length: 5 + 1 + 8 + 1 + 8 = 23 characters, well within 40)
     const receiptString = `rcpt_${shortTimestamp}_${userIdSuffix}`;
     // --- END OF RECEIPT FIX ---
 

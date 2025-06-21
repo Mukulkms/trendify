@@ -1,226 +1,272 @@
-import React, { useState, useEffect } from 'react';
+// pages/AdminOrdersPage.jsx
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth2 } from '../AuthContext2'; // Assuming AuthContext2 is the correct path
-import { toast } from 'react-toastify'; // Assuming react-toastify is configured
+import { useAuth2 } from '../AuthContext2'; // <--- CHANGED: Import useAuth2
+import { Loader2, AlertCircle, Package, User, Clock, CheckCircle } from 'lucide-react';
 
-export default function SuperAdminOrders() {
-  const { user, loading: authLoading } = useAuth2();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const AdminOrdersPage = () => {
+  const { user, loading: authLoading } = useAuth2(); // <--- CHANGED: Use useAuth2
   const navigate = useNavigate();
 
-  // --- Pagination State ---
-  const [currentPage, setCurrentPage] = useState(1);
-  const [ordersPerPage] = useState(10); // <--- This is where 10 orders per page is set
+  const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
 
-  // Helper function to construct image URL (reused from SuperAdminProducts)
-  const getImageUrl = (imagePath) => {
-    // If imagePath is already a full URL
-    if (imagePath && (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
-      return imagePath;
-    }
-    // If imagePath starts with '/images/', prepend the base URL
-    if (imagePath && imagePath.startsWith('/images/')) {
-        return `http://localhost:5000${imagePath}`;
-    }
-    // Otherwise, assume it's just the filename and construct the URL
-    if (imagePath) {
-      return `http://localhost:5000/images/${imagePath}`;
-    }
-    return 'https://via.placeholder.com/50'; // Default placeholder if no image path
-  };
+  const orderStatusOptions = [
+    'Processing',
+    'Shipped',
+    'Delivered',
+    'Cancelled',
+    'Refunded',
+    'On Hold'
+  ];
 
-  // Fetch orders from backend on component mount
   useEffect(() => {
-    console.log("SuperAdminOrders: useEffect - User object from useAuth2:", user);
-    console.log("SuperAdminOrders: useEffect - Auth Loading state:", authLoading);
-
-    if (authLoading) {
+    // Redirect if not authenticated or not an admin/super-admin
+    if (!authLoading && (!user || (user.role !== 'admin' && user.role !== 'super-admin'))) { // <--- CHANGED: Check for admin or super-admin role
+      console.log("AdminOrdersPage: Access Denied. User role:", user?.role);
+      navigate('/unauthorized', { replace: true });
       return;
     }
 
-    if (!user || user.role !== 'super-admin') {
-      setError('Access Denied: You must be a Super Admin to view orders.');
-      setLoading(false);
-      return;
-    }
+    const fetchAllOrders = async () => {
+      setIsLoading(true);
+      setError(null);
+      const token = localStorage.getItem("trendify_admin_token"); // <--- CHANGED: Use trendify_admin_token
 
-    const fetchOrders = async () => {
+      if (!token) {
+        setError('Authentication token not found. Please log in as an admin.');
+        setIsLoading(false);
+        navigate('/admin-login', { state: { from: '/admin/orders' }, replace: true }); // <--- Optional: Redirect to specific admin login
+        return;
+      }
+
       try {
-        const token = localStorage.getItem('trendify_admin_token'); // Ensure this is the correct token key
-        const response = await fetch('http://localhost:5000/api/orders', {
+        const backendBaseUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${backendBaseUrl}/orders`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+            'Authorization': `Bearer ${token}`,
           },
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch orders');
+          const errorData = await response.json().catch(() => ({}));
+          if (response.status === 401 || response.status === 403) {
+            setError('Unauthorized access. Please log in as an admin.');
+            localStorage.removeItem("trendify_admin_token"); // <--- CHANGED: Clear admin token
+            navigate('/admin-login', { state: { from: '/admin/orders' }, replace: true }); // <--- Optional: Redirect to specific admin login
+          } else {
+            throw new Error(errorData.message || `Failed to fetch orders: ${response.status}`);
+          }
         }
 
         const data = await response.json();
         setOrders(data);
-        setCurrentPage(1); // Reset to first page on new data fetch
-        console.log("SuperAdminOrders: Fetched orders count:", data.length); // Debugging
       } catch (err) {
-        setError(err.message);
-        toast.error(`Error fetching orders: ${err.message}`);
-        console.error('Error fetching orders:', err);
+        console.error('Error fetching all orders:', err);
+        setError(err.message || 'Failed to load all orders.');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
-    fetchOrders();
-  }, [authLoading, user, navigate]);
-
-  // --- Order Actions (Example: Update Status - requires backend endpoint) ---
-  const handleUpdateOrderStatus = async (orderId, newStatus) => {
-    if (!user || user.role !== 'super-admin') {
-        toast.error('Unauthorized: Only Super Admin can update order status.');
-        return;
+    if (user && (user.role === 'admin' || user.role === 'super-admin') && !authLoading) { // <--- CHANGED: Check for admin or super-admin
+      fetchAllOrders();
     }
-    toast.info(`Simulating order ${orderId} status update to: ${newStatus}`);
+  }, [user, authLoading, navigate]);
 
-    setOrders(prevOrders => prevOrders.map(order =>
-        order._id === orderId ? { ...order, status: newStatus } : order
-    ));
+  const handleStatusChange = async (orderId, newStatus) => {
+    setUpdatingOrderId(orderId);
+    const token = localStorage.getItem("trendify_admin_token"); // <--- CHANGED: Use trendify_admin_token
+
+    try {
+      const backendBaseUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${backendBaseUrl}/admin/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ orderStatus: newStatus }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update order status');
+      }
+
+      const updatedOrder = await response.json();
+      setOrders(prevOrders =>
+        prevOrders.map(order => (order._id === orderId ? updatedOrder : order))
+      );
+      alert(`Order ${orderId.substring(orderId.length - 6)} status updated to ${newStatus}`);
+    } catch (err) {
+      console.error('Error updating order status:', err);
+      alert(`Failed to update status for order ${orderId.substring(orderId.length - 6)}: ${err.message}`);
+    } finally {
+      setUpdatingOrderId(null);
+    }
   };
 
-  // --- Pagination Logic ---
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = orders.slice(indexOfFirstOrder, indexOfLastOrder);
-
-  const totalPages = Math.ceil(orders.length / ordersPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-  const renderPageNumbers = () => {
-    const pageNumbers = [];
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, currentPage + 2);
-
-    if (startPage > 1) {
-        pageNumbers.push(1);
-        if (startPage > 2) pageNumbers.push('...');
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pageNumbers.push(i);
-    }
-
-    if (endPage < totalPages) {
-        if (endPage < totalPages - 1) pageNumbers.push('...');
-        pageNumbers.push(totalPages);
-    }
-
-    return pageNumbers.map((number, index) => (
-      <li key={index} className="mx-1">
-        {number === '...' ? (
-          <span className="px-3 py-1 text-gray-500">...</span>
-        ) : (
-          <button
-            onClick={() => paginate(number)}
-            className={`px-3 py-1 border rounded ${
-              currentPage === number ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 hover:bg-blue-100'
-            }`}
-          >
-            {number}
-          </button>
-        )}
-      </li>
-    ));
-  };
-
-
-  if (loading) {
-    return <p className="text-center text-gray-500 text-lg py-10">Loading orders...</p>;
+  // --- Loading, Error, and Access Denied UI remains largely the same ---
+  if (authLoading || isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-gray-700">
+        <Loader2 className="h-12 w-12 animate-spin text-indigo-500 mb-4" />
+        <p className="text-xl font-semibold">Loading all orders for admin...</p>
+      </div>
+    );
   }
 
   if (error) {
-    return <p className="text-center text-red-500 text-lg py-10">Error: {error}</p>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-gray-700 p-4">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <p className="text-2xl font-semibold text-red-700 text-center">Error Loading Orders</p>
+        <p className="text-lg text-red-600 mt-3 text-center max-w-lg">{error}</p>
+        <button
+          onClick={() => navigate('/')}
+          className="mt-8 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors shadow-md"
+        >
+          Go to Home
+        </button>
+      </div>
+    );
   }
 
-  if (!user || user.role !== 'super-admin') {
-      return <p className="text-center text-red-500 text-lg py-10">You are not authorized to view this page.</p>;
+  // Final check for role after all loading/error states
+  if (!user || (user.role !== 'admin' && user.role !== 'super-admin')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-gray-700 p-4">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <p className="text-2xl font-semibold text-red-700 text-center">Access Denied</p>
+        <p className="text-lg text-gray-600 mt-3 text-center max-w-lg">
+          You do not have administrative privileges to view this page.
+        </p>
+        <button
+          onClick={() => navigate('/')}
+          className="mt-8 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors shadow-md"
+        >
+          Go to Home
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <div className="max-w-7xl mx-auto bg-white p-8 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Superadmin Orders</h2>
+    <div className="bg-gray-50 min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <h2 className="text-4xl font-bold text-gray-900 text-center mb-10 border-b-2 border-indigo-300 pb-4">
+          All Orders (Admin View)
+        </h2>
 
         {orders.length === 0 ? (
-          <p className="text-gray-600">No orders found.</p>
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl shadow-md border border-gray-200">
+            <Package className="h-20 w-20 text-gray-400 mb-6" />
+            <p className="text-xl text-gray-600 font-medium mb-3">No Orders Placed Yet</p>
+            <p className="text-gray-500 text-center max-w-md">
+              There are no orders in the system to display.
+            </p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border border-gray-200">
-              <thead>
-                <tr className="bg-gray-100 text-left text-gray-600 uppercase text-sm leading-normal">
-                  <th className="py-3 px-6 border-b border-gray-200">Order ID</th>
-                  <th className="py-3 px-6 border-b border-gray-200">Customer</th>
-                  <th className="py-3 px-6 border-b border-gray-200">Items</th>
-                  <th className="py-3 px-6 border-b border-gray-200">Total Amount</th>
-                  <th className="py-3 px-6 border-b border-gray-200">Status</th>
-                  <th className="py-3 px-6 border-b border-gray-200">Order Date</th>
-                  <th className="py-3 px-6 border-b border-gray-200 text-center">Actions</th>
+          <div className="overflow-x-auto rounded-xl shadow-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200 bg-white">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Order ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ordered By
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Items
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ordered On
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Order Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
-              <tbody className="text-gray-700 text-sm font-light">
-                {currentOrders.map((order) => (
-                  <tr key={order._id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="py-3 px-6 whitespace-nowrap">{order._id}</td>
-                    <td className="py-3 px-6">{order.user?.name || order.user?.email || 'N/A'}</td>
-                    <td className="py-3 px-6">
-                      <ul className="list-disc list-inside">
-                        {order.items.map((item, index) => (
-                          <li key={index} className="text-xs">
-                            <div className="flex items-center">
-                                <img
-                                    src={getImageUrl(item.image)}
-                                    alt={item.name}
-                                    className="w-8 h-8 object-cover rounded mr-2"
-                                    onError={(e) => { e.target.src = 'https://via.placeholder.com/30'; }}
-                                    loading="lazy"
-                                />
-                                {item.name} (x{item.quantity}) - ${item.price.toFixed(2)}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+              <tbody className="divide-y divide-gray-200">
+                {orders.map((order) => (
+                  <tr key={order._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      #{order._id.substring(order._id.length - 6)}
                     </td>
-                    <td className="py-3 px-6">${order.totalAmount}</td>
-                    <td className="py-3 px-6">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          order.status === 'Delivered' ? 'bg-green-200 text-green-800' :
-                          order.status === 'Shipped' ? 'bg-blue-200 text-blue-800' :
-                          order.status === 'Cancelled' ? 'bg-red-200 text-red-800' :
-                          'bg-yellow-200 text-yellow-800'
-                      }`}>
-                          {order.status}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <img
+                          className="h-8 w-8 rounded-full object-cover mr-2"
+                          src={order.userId?.profilePic || 'https://via.placeholder.com/40'}
+                          alt={order.userId?.fullname || 'User'}
+                        />
+                        <div className="text-sm font-medium text-gray-900">
+                          {order.userId?.fullname || 'N/A'}
+                          <div className="text-gray-500">{order.userId?.email || 'N/A'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {order.items.map((item, idx) => (
+                        <p key={idx}>
+                          {item.productId?.name || 'Unknown Product'} (x{item.quantity})
+                        </p>
+                      ))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-semibold">
+                      ₹{order.totalPrice.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(order.orderedAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          order.paymentStatus === 'Paid'
+                            ? 'bg-green-100 text-green-800'
+                            : order.paymentStatus === 'Pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {order.paymentStatus}
                       </span>
                     </td>
-                    <td className="py-3 px-6">{new Date(order.createdAt).toLocaleDateString()}</td>
-                    <td className="py-3 px-6 text-center">
-                      <button
-                        onClick={() => navigate(`/superadmin/orders/${order._id}`)}
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded text-xs mr-2 transition duration-300"
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={order.orderStatus}
+                        onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                        className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        disabled={updatingOrderId === order._id}
                       >
-                        View Details
-                      </button>
-                      {order.status === 'Pending' || order.status === 'Processing' ? (
-                        <button
-                          onClick={() => handleUpdateOrderStatus(order._id, 'Shipped')}
-                          className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-xs transition duration-300"
-                        >
-                          Mark Shipped
-                        </button>
-                      ) : null}
+                        {orderStatusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {updatingOrderId === order._id ? (
+                        <Loader2 className="animate-spin h-5 w-5 text-indigo-500" />
+                      ) : (
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -228,38 +274,9 @@ export default function SuperAdminOrders() {
             </table>
           </div>
         )}
-
-        {/* Pagination Controls */}
-        {orders.length > ordersPerPage && (
-          <nav className="flex justify-center mt-6">
-            <ul className="flex items-center space-x-2">
-              <li>
-                <button
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`px-3 py-1 border rounded ${
-                    currentPage === 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-white text-blue-600 hover:bg-blue-100'
-                  }`}
-                >
-                  Previous
-                </button>
-              </li>
-              {renderPageNumbers()}
-              <li>
-                <button
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`px-3 py-1 border rounded ${
-                    currentPage === totalPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-white text-blue-600 hover:bg-blue-100'
-                  }`}
-                >
-                  Next
-                </button>
-              </li>
-            </ul>
-          </nav>
-        )}
       </div>
     </div>
   );
-}
+};
+
+export default AdminOrdersPage;
