@@ -71,21 +71,28 @@ router.post('/check-user', async (req, res) => {
 router.post('/send-otp', async (req, res) => {
   try {
     const { mobileNumber } = req.body;
-    if (!mobileNumber) return res.status(400).json({ message: 'Mobile number is required' });
-
+    if (!mobileNumber) {
+      return res.status(400).json({ message: 'Mobile number is required' });
+    }
+ 
     const user = await User.findOne({ mobileNumber });
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+ 
+    // Generate and send OTP (mock implementation)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+    console.log(`OTP for ${mobileNumber}: ${otp}`); // In production, send via SMS/email
     user.otp = otp;
-    user.otpExpiresAt = Date.now() + 10 * 60 * 1000;
+    user.otpExpiresAt = Date.now() + 10 * 60 * 1000; // OTP valid for 10 minutes
     await user.save();
-
+ 
     res.status(200).json({ success: true, message: 'OTP sent successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 });
+
 
 // Verify OTP and login
 router.post('/verify-otp', async (req, res) => {

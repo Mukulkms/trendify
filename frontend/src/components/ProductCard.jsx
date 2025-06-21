@@ -82,7 +82,7 @@ const ProductCard = ({ product }) => {
             <img
               src={image} // Directly using the 'image' variable (which is product.image)
               alt={name || 'Product Image'}
-              className="w-full h-80 object-cover transition-transform duration-300 hover:scale-110"
+              className="w-full h-85 object-cover transition-transform duration-300 hover:scale-110"
             />
           </div>
         </Link>
