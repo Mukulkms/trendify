@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/order'); // Adjust path as needed
 const Product = require('../models/Product'); // Assuming you have a Product model for stock management
-const { protect } = require('../middleware/authMiddleware'); // Your authentication middleware
+const { protect, adminOnly, superAdminOnly } = require('../middleware/authMiddleware'); // Import your specific middlewares
 const Razorpay = require('razorpay');
 
 // Initialize Razorpay
@@ -16,21 +16,16 @@ const instance = new Razorpay({
  * @route POST /api/orders/create
  * @desc Create a new order after successful payment verification
  * @access Private
- *
- * This route is called by your frontend's OrderConfirmation page
- * AFTER Razorpay payment is successful and verified.
  */
 router.post('/create', protect, async (req, res) => {
   const { items, totalPrice, discount, shippingAddress, razorpayOrderId, paymentId, paymentStatus } = req.body;
-  const userId = req.user._id; // `req.user` comes from your `protect` middleware
+  const userId = req.user._id;
 
-  // Basic validation
   if (!items || items.length === 0 || !totalPrice || !shippingAddress || !razorpayOrderId || !paymentId || !paymentStatus) {
     return res.status(400).json({ message: 'Missing required order details.' });
   }
 
   try {
-    // Optional: Decrement product stock (Implement carefully with transactions if high concurrency)
     for (const item of items) {
       const product = await Product.findById(item.productId);
       if (!product) {
@@ -51,8 +46,8 @@ router.post('/create', protect, async (req, res) => {
       shippingAddress,
       razorpayOrderId,
       paymentId,
-      paymentStatus, // Should be 'Paid' at this point
-      orderStatus: 'Processing', // Initial order status
+      paymentStatus,
+      orderStatus: 'Processing',
     });
 
     const createdOrder = await newOrder.save();
@@ -64,7 +59,6 @@ router.post('/create', protect, async (req, res) => {
 
   } catch (error) {
     console.error('Error creating order:', error);
-    // If stock update failed or order creation failed, consider rolling back stock (advanced)
     res.status(500).json({ message: 'Server error while creating order.' });
   }
 });
@@ -77,11 +71,74 @@ router.post('/create', protect, async (req, res) => {
 router.get('/myorders', protect, async (req, res) => {
   try {
     const orders = await Order.find({ userId: req.user._id })
-                               .populate('items.productId', 'name image'); // Populate product name and image
+                               .populate('items.productId', 'name image');
     res.status(200).json(orders);
   } catch (error) {
     console.error('Error fetching user orders:', error);
     res.status(500).json({ message: 'Server error while fetching orders.' });
+  }
+});
+
+/**
+ * @route GET /api/orders
+ * @desc Get all orders (for admin dashboard)
+ * @access Private (Admin or Super-Admin Only)
+ *
+ * This route now uses both protect and a combined check for admin/super-admin.
+ */
+router.get('/', protect, (req, res, next) => {
+    // This custom middleware checks if the user is either an 'admin' or 'super-admin'
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'super-admin')) {
+      next(); // Authorized, proceed
+    } else {
+      res.status(403).json({ message: "Not authorized to access this resource. Admin or Super Admin role required." });
+    }
+}, async (req, res) => {
+  try {
+    // We remove the userId filter to get all orders
+    // Populate userId for 'fullname', 'email', 'profilePic' and items.productId for 'name', 'image'
+    const orders = await Order.find({})
+                               .populate('userId', 'fullname email profilePic')
+                               .populate('items.productId', 'name image');
+    res.status(200).json(orders);
+  } catch (error) {
+    console.error('Error fetching all orders for admin:', error);
+    res.status(500).json({ message: 'Server error while fetching all orders.' });
+  }
+});
+
+/**
+ * @route PUT /api/admin/orders/:id/status
+ * @desc Update order status (for admin)
+ * @access Private (Admin or Super-Admin Only)
+ */
+router.put('/admin/orders/:id/status', protect, (req, res, next) => {
+    // This custom middleware checks if the user is either an 'admin' or 'super-admin'
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'super-admin')) {
+      next(); // Authorized, proceed
+    } else {
+      res.status(403).json({ message: "Not authorized to access this resource. Admin or Super Admin role required." });
+    }
+}, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found.' });
+    }
+
+    order.orderStatus = req.body.orderStatus;
+    await order.save();
+
+    // Re-populate to send back complete data if the frontend expects it
+    const updatedOrder = await Order.findById(req.params.id)
+                                    .populate('userId', 'fullname email profilePic')
+                                    .populate('items.productId', 'name image');
+
+    res.json(updatedOrder); // Send back the fully updated order
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ message: 'Server error while updating order status.' });
   }
 });
 
@@ -104,6 +161,5 @@ router.get('/:id', protect, async (req, res) => {
     res.status(500).json({ message: 'Server error while fetching order.' });
   }
 });
-
 
 module.exports = router;
