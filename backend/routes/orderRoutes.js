@@ -108,11 +108,14 @@ router.get('/', protect, (req, res, next) => {
 });
 
 /**
- * @route PUT /api/admin/orders/:id/status
+ * @route PUT /api/orders/:id
  * @desc Update order status (for admin)
  * @access Private (Admin or Super-Admin Only)
+ *
+ * This route handles status updates. Ensure it is placed after more specific
+ * routes if any other PUT /api/orders/:id routes exist for different purposes.
  */
-router.put('/admin/orders/:id/status', protect, (req, res, next) => {
+router.put('/:id', protect, (req, res, next) => { // <--- THIS IS THE CHANGED LINE
     // This custom middleware checks if the user is either an 'admin' or 'super-admin'
     if (req.user && (req.user.role === 'admin' || req.user.role === 'super-admin')) {
       next(); // Authorized, proceed
@@ -120,28 +123,34 @@ router.put('/admin/orders/:id/status', protect, (req, res, next) => {
       res.status(403).json({ message: "Not authorized to access this resource. Admin or Super Admin role required." });
     }
 }, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
+    try {
+        const order = await Order.findById(req.params.id);
 
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found.' });
+        if (!order) {
+          return res.status(404).json({ message: 'Order not found.' });
+        }
+
+        // Ensure only orderStatus is updated here, as per your frontend's request body
+        if (req.body.orderStatus) {
+            order.orderStatus = req.body.orderStatus;
+        } else {
+            // This is a safeguard if the frontend sends a request without orderStatus
+            return res.status(400).json({ message: 'Order status field is missing from request body.' });
+        }
+
+        await order.save();
+
+        // Re-populate to send back complete data if the frontend expects it
+        const updatedOrder = await Order.findById(req.params.id)
+                                       .populate('userId', 'fullname email profilePic')
+                                       .populate('items.productId', 'name image');
+
+        res.json(updatedOrder); // Send back the fully updated order
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        res.status(500).json({ message: 'Server error while updating order status.' });
     }
-
-    order.orderStatus = req.body.orderStatus;
-    await order.save();
-
-    // Re-populate to send back complete data if the frontend expects it
-    const updatedOrder = await Order.findById(req.params.id)
-                                    .populate('userId', 'fullname email profilePic')
-                                    .populate('items.productId', 'name image');
-
-    res.json(updatedOrder); // Send back the fully updated order
-  } catch (error) {
-    console.error('Error updating order status:', error);
-    res.status(500).json({ message: 'Server error while updating order status.' });
-  }
 });
-
 /**
  * @route GET /api/orders/:id
  * @desc Get a single order by ID for the authenticated user
