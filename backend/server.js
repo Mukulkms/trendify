@@ -47,6 +47,9 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // API Routes
+const categoryRoutes = require('./routes/categoryRoutes');
+app.use('/api/categories', categoryRoutes);
+
 const adminVendorAuthRoutes = require('./routes/adminVendorAuth');
 app.use('/api/admin-vendor-auth', adminVendorAuthRoutes);
 

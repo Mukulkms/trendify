@@ -175,7 +175,11 @@ export default function Header() {
           <span>Offers</span>
         </div>
         <div className="flex gap-4 py-1">
-          <span>Contact us</span>
+          <span>
+            <Link to="/superadmin/login">
+              Login as Admin
+            </Link>
+          </span>
           <span>Track orders</span>
         </div>
       </div>

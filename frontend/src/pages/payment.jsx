@@ -1,64 +1,55 @@
-import React, { useEffect, useState } from "react"; // Import useState for local error messages
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  MapPin, // For address
-  Package, // For order summary
-  CreditCard, // For payment button
-  AlertCircle, // For error messages
-  Loader2, // For loading states
-} from "lucide-react"; // Make sure you have lucide-react installed
- 
+  MapPin,
+  Package,
+  CreditCard,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+
 const PaymentPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
-  // Ensure state properties are destructured with a default empty object
   const { orderDetails, selectedAddress } = state || {};
- 
-  const [paymentError, setPaymentError] = useState(null); // Local state for payment errors
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false); // New state for payment processing
- 
+  const [paymentError, setPaymentError] = useState(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
     document.body.appendChild(script);
- 
-    // Cleanup function for the script
+
     return () => {
       if (document.body.contains(script)) {
         document.body.removeChild(script);
       }
     };
   }, []);
- 
-  // Handle cases where order details or address are missing (e.g., direct URL access)
+
   useEffect(() => {
     if (!orderDetails || !selectedAddress) {
       setPaymentError(
         "Order details or delivery address are missing. Please go back to cart."
       );
-      // Optional: Redirect after a short delay
-      // const timer = setTimeout(() => navigate('/cart', { replace: true }), 3000);
-      // return () => clearTimeout(timer);
     }
   }, [orderDetails, selectedAddress, navigate]);
- 
+
   const handleCompletePayment = async () => {
-    setPaymentError(null); // Clear previous errors
-    setIsProcessingPayment(true); // Indicate payment processing has started
- 
+    setPaymentError(null);
+    setIsProcessingPayment(true);
+
     try {
       const token = localStorage.getItem("trendify_token");
       if (!token) {
         setPaymentError(
           "Authentication token not found. Please log in to proceed with payment."
         );
-        // Consider immediate redirect if token is critical for this step
-        // navigate('/login');
         setIsProcessingPayment(false);
         return;
       }
- 
+
       // 1. Create Payment Order on Backend
       const createResponse = await fetch(
         "http://localhost:5000/api/payment/create",
@@ -70,11 +61,11 @@ const PaymentPage = () => {
           },
           body: JSON.stringify({
             orderDetails,
-            address: selectedAddress, // Ensure your backend expects 'address' field here
+            address: selectedAddress,
           }),
         }
       );
- 
+
       if (!createResponse.ok) {
         const errorData = await createResponse.json();
         if (createResponse.status === 401) {
@@ -89,17 +80,16 @@ const PaymentPage = () => {
             errorData.message || "Failed to create payment order."
           );
         }
-        return; // Exit after throwing error or redirecting
+        return;
       }
- 
+
       const {
-        orderId,
+        orderId, // This is Razorpay's order_id from the backend
         amount,
         currency,
         user: userDataFromBackend,
       } = await createResponse.json();
- 
-      // Validate user data from backend for prefill
+
       if (
         !userDataFromBackend ||
         !userDataFromBackend.fullname ||
@@ -110,25 +100,24 @@ const PaymentPage = () => {
           "User data is missing or incomplete for payment prefill. Please update your profile."
         );
       }
- 
+
       // 2. Open Razorpay Checkout
       const options = {
-        key: process.env.REACT_APP_RAZORPAY_KEY_ID, // Your Razorpay Key ID
-        amount: amount * 100, // Amount in paisa
+        key: process.env.REACT_APP_RAZORPAY_KEY_ID,
+        amount: amount * 100,
         currency: currency,
         name: "Trendify E-commerce",
         description: `Payment for Order ID: ${orderId}`,
-        order_id: orderId,
+        order_id: orderId, // Pass the Razorpay order ID to the checkout
         prefill: {
           name: userDataFromBackend.fullname,
           email: userDataFromBackend.email,
           contact: userDataFromBackend.mobileNumber,
         },
         handler: async function (response) {
-          // This function is called on successful payment
           const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
             response;
- 
+
           // 3. Verify Payment on Backend
           try {
             const verifyResponse = await fetch(
@@ -146,20 +135,23 @@ const PaymentPage = () => {
                 }),
               }
             );
- 
+
             if (!verifyResponse.ok) {
               const verifyErrorData = await verifyResponse.json();
               throw new Error(
                 verifyErrorData.message || "Payment verification failed."
               );
             }
- 
+
             // Payment successfully verified
             alert("Payment successful! Your order has been placed.");
             navigate("/order-confirmation", {
               state: {
-                orderId: razorpay_order_id,
-                paymentId: razorpay_payment_id,
+                // --- THE KEY FIX IS HERE ---
+                // Pass Razorpay IDs using the keys expected by OrderConfirmation.jsx
+                razorpayOrderId: razorpay_order_id,
+                razorpayPaymentId: razorpay_payment_id,
+                // Pass other essential data
                 orderDetails,
                 selectedAddress,
                 paymentDate: new Date().toISOString(),
@@ -171,23 +163,27 @@ const PaymentPage = () => {
                 "Error verifying payment. Please contact support."
             );
             console.error("Payment verification error:", verifyErr);
-            // Optionally, navigate to a payment failed page
-            navigate("/payment-failed");
+            navigate("/payment-failed"); // Navigate to a dedicated failed page
           } finally {
-            setIsProcessingPayment(false); // Stop processing even after successful verification
+            setIsProcessingPayment(false);
           }
         },
         theme: {
-          color: "#4F46E5", // A nice indigo color to match Tailwind
+          color: "#4F46E5",
         },
       };
- 
+
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", function (response) {
         setPaymentError(
           `Payment failed: ${response.error.description || "Unknown error."}`
         );
         console.error("Razorpay Payment Failed:", response.error);
+        setIsProcessingPayment(false); // Reset processing state on failure
+        // Optionally, navigate to a payment failed page or display a persistent error
+        navigate("/payment-failed", {
+            state: { errorMessage: response.error.description || "Payment failed. Please try again." }
+        });
       });
       rzp.open();
     } catch (err) {
@@ -197,17 +193,17 @@ const PaymentPage = () => {
       );
       console.error("Payment process error:", err);
     } finally {
-      setIsProcessingPayment(false); // Ensure loading state is reset even on errors
+      setIsProcessingPayment(false);
     }
   };
- 
-  // Render a loading state if order details or address are not yet available due to navigation state
+
+  // ... (rest of your component remains the same)
   if (!orderDetails || !selectedAddress) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-gray-700">
         <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4" />
         <p className="text-xl font-semibold">Loading order details...</p>
-        {paymentError && ( // Display error if details are missing and error is set
+        {paymentError && (
           <div
             className="mt-4 bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg flex items-center gap-3 shadow-sm"
             role="alert"
@@ -219,15 +215,14 @@ const PaymentPage = () => {
       </div>
     );
   }
- 
+
   return (
     <div className="bg-gray-100 min-h-screen py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <h2 className="text-4xl text-gray-900 text-center mb-10 border-b-2 border-indigo-200 pb-4">
           Complete Your Payment
         </h2>
- 
-        {/* Local Error Message Display */}
+
         {paymentError && (
           <div
             className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg flex items-center gap-3 mb-6 shadow-sm"
@@ -237,8 +232,7 @@ const PaymentPage = () => {
             <p className="font-medium">{paymentError}</p>
           </div>
         )}
- 
-        {/* Order Summary Card */}
+
         <div className="bg-white p-8 rounded-xl shadow-lg mb-8 border border-gray-200">
           <h3 className="text-2xl font-semibold text-gray-800 flex items-center gap-3 mb-6">
             <Package className="h-7 w-7 text-indigo-600" />
@@ -267,24 +261,21 @@ const PaymentPage = () => {
                 No items found in this order.
               </p>
             )}
- 
-            {/* Discount Row */}
+
             {orderDetails.discount > 0 && (
               <div className="flex justify-between text-base font-medium text-green-600 pt-2">
                 <span>Discount Applied</span>
                 <span>-₹{orderDetails.discount.toFixed(2)}</span>
               </div>
             )}
- 
-            {/* Total Amount */}
+
             <div className="pt-4 mt-4 flex justify-between items-center font-bold text-2xl text-indigo-700 border-t-2 border-gray-100">
               <span>Total Amount</span>
               <span>₹{orderDetails.totalPrice.toFixed(2)}</span>
             </div>
           </div>
         </div>
- 
-        {/* Delivery Address Card */}
+
         <div className="bg-white p-8 rounded-xl shadow-lg mb-8 border border-gray-200">
           <h3 className="text-2xl font-semibold text-gray-800 flex items-center gap-3 mb-6">
             <MapPin className="h-7 w-7 text-indigo-600" />
@@ -295,7 +286,7 @@ const PaymentPage = () => {
               {selectedAddress.fullName}
             </p>
             <p className="text-gray-700 text-sm leading-relaxed">
-              {selectedAddress.street}, {selectedAddress.city},{" "}
+              {selectedAddress.fullAddress}, {selectedAddress.city},{" "}
               {selectedAddress.state} -{" "}
               <span className="font-semibold">{selectedAddress.pincode}</span>
             </p>
@@ -304,8 +295,7 @@ const PaymentPage = () => {
             </p>
           </div>
         </div>
- 
-        {/* Payment Button */}
+
         <button
           onClick={handleCompletePayment}
           className={`w-full mt-6 py-4 rounded-md font-bold text-white transition-all duration-300 transform shadow-lg
@@ -330,6 +320,5 @@ const PaymentPage = () => {
     </div>
   );
 };
- 
+
 export default PaymentPage;
- 

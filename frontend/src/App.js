@@ -43,7 +43,8 @@ import Users from './super-admin/components/UserManagement';
 import SuperAdminProducts from './super-admin/pages/SuperAdminProducts.jsx';
 import SuperAdminOrders from './super-admin/pages/SuperAdminOrdersPage.jsx'; // Corrected filename case if needed
 import OrderConfirmation from './pages/order-confirmation.jsx';
-
+import OrderHistory from './components/orderHistory';
+import CategoryManagement from './super-admin/pages/CategoryManagement.jsx';
 // Protected Routes
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -81,11 +82,12 @@ function App() {
               <Route path="/checkout/address" element={<ProtectedRoute><AddressSelectionPage /></ProtectedRoute>} />
               <Route path="/checkout/payment" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
               <Route path ="/order-confirmation" element = {<OrderConfirmation/>}/>
+              <Route path ="/my-orders" element = {<OrderHistory/>}/>
 
               {/* User Dashboard Routes */}
               <Route path="/dashboard" element={<ProtectedRoute><UserDashboardLayout /></ProtectedRoute>}>
                 <Route index element={<DashboardOverviewPage />} />
-                <Route path="orders" element={<MyOrdersPage />} />
+                <Route path="orders" element={<OrderHistory/>} />
                 <Route path="addresses" element={<MyAddressesPage />} />
                 <Route path="profile" element={<MyProfilePage />} />
                 <Route path="wishlist" element={<WishlistPage />} />
@@ -110,6 +112,7 @@ function App() {
               <Route path="orders" element={<SuperAdminOrders />} /> 
               <Route path="products" element={<SuperAdminProducts />} />
               <Route path="users" element={<Users/>} />
+              <Route path="categories" element={<CategoryManagement/>} />
               {/* Add more routes here */}
             </Route>
             {/* 404 */}

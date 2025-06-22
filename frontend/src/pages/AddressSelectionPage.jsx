@@ -3,31 +3,52 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/Auth/AuthContext';
 import AddressModal from '../components/AddressModal';
 import {
-  MapPin,       // For general location/address
-  ShoppingBag,  // For order summary
-  CheckCircle,  // For selected/default address indicator
-  PlusCircle,   // For adding/managing addresses
-  Loader2,      // For loading states
-  AlertCircle,  // For error messages
-} from 'lucide-react'; // Ensure these icons are installed: npm install lucide-react
+  MapPin,
+  ShoppingBag,
+  CheckCircle,
+  PlusCircle,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
 
 const AddressSelectionPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading } = useAuth(); // Assuming useAuth provides user and loading status
-  const { orderDetails, pinCode } = location.state || {}; // Destructure with default empty object
+  const { user, loading } = useAuth();
+  const { orderDetails, pinCode } = location.state || {};
 
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const [addresses, setAddresses] = useState([]); // This state is not directly used in rendering, but kept for context.
+  const [addresses, setAddresses] = useState([]);
   const [fetchError, setFetchError] = useState(null);
-  const [isFetchingAddresses, setIsFetchingAddresses] = useState(true); // New loading state for addresses
+  const [isFetchingAddresses, setIsFetchingAddresses] = useState(true);
 
-  // Fetch addresses on component mount or user change
+  // Helper function to format address for consistency across pages
+  const formatAddressForCheckout = useCallback((address) => {
+    if (!address) return null;
+
+    // *** CRITICAL FIX HERE: Directly use address.fullAddress ***
+    // Your backend provides 'fullAddress' as the single comprehensive field.
+    // Do NOT try to rebuild it from 'houseNumber', 'street', 'landmark' if those
+    // fields do not exist in your actual address objects from the backend.
+    const formattedFullAddress = address.fullAddress || '';
+
+    return {
+      ...address, // Keep all original properties
+      fullName: address.fullName || address.name || '', // Ensure fullName is present
+      fullAddress: formattedFullAddress.trim(), // Use the existing fullAddress directly
+      mobileNumber: address.mobileNumber || address.mobile || address.phone || '', // Ensure mobileNumber is consistent
+      city: address.city || '',
+      state: address.state || '',
+      pincode: address.pincode || '',
+      country: address.country || 'India', // Ensure country is present
+    };
+  }, []); // Dependencies for useCallback. If these default values ever change, add them here.
+
   useEffect(() => {
     if (user) {
-      setIsFetchingAddresses(true); // Start loading
-      setFetchError(null); // Clear previous errors
+      setIsFetchingAddresses(true);
+      setFetchError(null);
       const token = localStorage.getItem('trendify_token');
 
       if (!token) {
@@ -46,7 +67,7 @@ const AddressSelectionPage = () => {
         .then(async (response) => {
           if (!response.ok) {
             const text = await response.text();
-            console.error('Raw response on GET /api/addresses error:', text); // Log raw response for debugging
+            console.error('Raw response on GET /api/addresses error:', text);
             let errorMessage = 'Failed to fetch addresses. Please try again.';
             if (response.status === 401) {
               errorMessage = 'Session expired. Please log in again.';
@@ -58,35 +79,34 @@ const AddressSelectionPage = () => {
           return response.json();
         })
         .then((data) => {
-          console.log("Fetched addresses:", data);
-          setAddresses(data); // Store all addresses
-          // Find the default address or select the first one if no default
-          const defaultAddr = data.find((addr) => addr.isDefault) || (data.length > 0 ? data[0] : null);
+          console.log("Fetched raw addresses from backend:", data); // Log raw data
+          // Format all fetched addresses using the simplified function
+          const formattedAddresses = data.map(formatAddressForCheckout);
+          setAddresses(formattedAddresses); // Store formatted addresses
+          const defaultAddr = formattedAddresses.find((addr) => addr.isDefault) || (formattedAddresses.length > 0 ? formattedAddresses[0] : null);
           setSelectedAddress(defaultAddr);
+          console.log("Selected formatted address for checkout:", defaultAddr); // Log formatted selected address
         })
         .catch((err) => {
           console.error("Error fetching addresses:", err.message);
           setFetchError(err.message);
           if (err.message.includes('Session expired') || err.message.includes('Unauthorized')) {
             localStorage.removeItem('trendify_token');
-            // Using navigate with replace: true is good for auth redirects
             navigate('/login', { state: { from: '/checkout/address' }, replace: true });
           }
         })
         .finally(() => {
-          setIsFetchingAddresses(false); // End loading
+          setIsFetchingAddresses(false);
         });
     }
-  }, [user, navigate]); // Depend on user and navigate
+  }, [user, navigate, formatAddressForCheckout]);
 
-  // Redirect if orderDetails are missing (e.g., direct access)
   useEffect(() => {
     if (!loading && !orderDetails) {
       navigate('/cart', { replace: true });
     }
   }, [orderDetails, loading, navigate]);
 
-  // Redirect if user is not authenticated after initial loading
   useEffect(() => {
     if (!loading && !user) {
       navigate('/login', { state: { from: '/checkout/address' }, replace: true });
@@ -94,30 +114,32 @@ const AddressSelectionPage = () => {
   }, [user, loading, navigate]);
 
   const handleAddressSelected = useCallback((address) => {
-    setSelectedAddress(address);
-    setIsAddressModalOpen(false); // Close modal after selection
-  }, []);
+    // Ensure the selected address from modal is also formatted
+    setSelectedAddress(formatAddressForCheckout(address));
+    setIsAddressModalOpen(false);
+  }, [formatAddressForCheckout]);
 
-  // Handle proceeding to payment
   const handleProceedToPayment = () => {
     if (!selectedAddress) {
-      setFetchError('Please select or add a delivery address to proceed.'); // Use fetchError for user feedback
+      setFetchError('Please select or add a delivery address to proceed.');
       return;
     }
     // Optional: Pincode validation based on initial pincode entered
-    if (pinCode && selectedAddress.pincode.toString() !== pinCode.toString()) { // Ensure type consistency for comparison
+    if (pinCode && selectedAddress.pincode.toString() !== pinCode.toString()) {
       setFetchError(`Selected address pincode (${selectedAddress.pincode}) does not match the entered pincode (${pinCode}). Please choose an address with the matching pincode.`);
       return;
     }
+
+    // THIS IS THE CRITICAL NAVIGATION POINT
+    console.log("Navigating to payment with selectedAddress:", selectedAddress); // Final check before navigation
     navigate('/checkout/payment', {
       state: {
         orderDetails,
-        selectedAddress,
+        selectedAddress, // This 'selectedAddress' object now has 'fullAddress'
       },
     });
   };
 
-  // Render loading state for the page (initial auth check)
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-gray-700">
@@ -127,8 +149,6 @@ const AddressSelectionPage = () => {
     );
   }
 
-  // If user or orderDetails are missing after loading, the useEffects will handle redirection
-  // This return null prevents rendering content before redirection, but is a fallback.
   if (!user || !orderDetails) {
     return null;
   }
@@ -136,11 +156,10 @@ const AddressSelectionPage = () => {
   return (
     <div className="bg-gray-50 min-h-screen py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-4xl  text-gray-900 text-center mb-10 border-b-2 border-indigo-200 pb-4">
+        <h2 className="text-4xl  text-gray-900 text-center mb-10 border-b-2 border-indigo-200 pb-4">
           Select Delivery Address
         </h2>
 
-        {/* Global Error Message Display */}
         {fetchError && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg flex items-center gap-3 mb-6 shadow-sm" role="alert">
             <AlertCircle className="h-6 w-6" />
@@ -187,6 +206,7 @@ const AddressSelectionPage = () => {
               <p className="text-lg">Fetching your addresses...</p>
             </div>
           ) : selectedAddress ? (
+            // Display using formatted fields
             <div className="relative p-5 rounded-lg border-2 border-indigo-500 bg-indigo-50 shadow-sm mb-6 transition-all duration-300 transform hover:scale-[1.01]">
               <CheckCircle className="absolute top-3 right-3 h-6 w-6 text-indigo-600" />
               <p className="font-bold text-gray-900 mb-1 flex items-center">
@@ -198,7 +218,8 @@ const AddressSelectionPage = () => {
                 )}
               </p>
               <p className="text-gray-700 text-sm leading-relaxed">
-                {selectedAddress.street}, {selectedAddress.city}, {selectedAddress.state} -{' '}
+                {/* Now confidently use selectedAddress.fullAddress here */}
+                {selectedAddress.fullAddress}, {selectedAddress.city}, {selectedAddress.state} -{' '}
                 <span className="font-semibold">{selectedAddress.pincode}</span>
               </p>
               <p className="text-gray-700 text-sm">Mobile: {selectedAddress.mobileNumber}</p>
@@ -247,10 +268,8 @@ const AddressSelectionPage = () => {
           isOpen={isAddressModalOpen}
           onClose={() => setIsAddressModalOpen(false)}
           onAddressSelect={handleAddressSelected}
-          currentUser={user} // Make sure currentUser is passed for the modal's internal logic
-          selectedAddress={selectedAddress} // Pass current selected address to highlight it in modal
-          // You might also want to pass a refresh function if addresses can be added/deleted in modal
-          // onAddressChange={fetchPendingUsers} // If modal updates addresses, call this
+          currentUser={user}
+          selectedAddress={selectedAddress}
         />
       )}
     </div>
