@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import SuperAdminHeader from '../../components/SuperAdminHeader';
 import { useAuth2 } from '../AuthContext2'; // ✅ Import context
 
@@ -99,6 +99,9 @@ export default function Login() {
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
+          <Link to="/superadmin/register">
+            <p className='flex text-center w-full py-2 text-blue-400 hover:text-blue-700 disabled:opacity-50 '>Want to become Admin or Vendor click Here?</p>
+          </Link>
         </form>
       </div>
     </>
