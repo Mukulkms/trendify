@@ -52,7 +52,7 @@ export default function ProductManagement() {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage] = useState(15); // Show 15 products per page
-
+  const [categoryOptions, setCategoryOptions] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
     description: "", // Added description field
@@ -70,30 +70,17 @@ export default function ProductManagement() {
   });
   const [imagePreview, setImagePreview] = useState(null);
 
-  const categoryOptions = [
-    "T-Shirt",
-    "Shoes",
-    "Jeans",
-    "Hoodie",
-    "Joggers",
-    "Tops",
-    "Leggings",
-    "Top",
-    "Dress",
-    "Shirt",
-    "Jacket",
-    "Set",
-    "Skirt Set",
-    "Blazer",
-    "Skirt",
-    "Wallets",
-    "Belts",
-    "Watches",
-    "Sunglasses",
-    "Bags",
-    "Hats",
-  ];
-
+const fetchCategories = async () => {
+  try {
+    const response = await fetch('http://localhost:5000/api/categories');
+    if (!response.ok) throw new Error('Failed to fetch categories');
+    const data = await response.json();
+    const categoryNames = data.map((cat) => cat.name); // assuming API returns [{ _id, name }]
+    setCategoryOptions(categoryNames);
+  } catch (err) {
+    console.error('Error fetching categories:', err.message);
+  }
+};
   const genderOptions = ["men", "women", "kids"];
 
   const sizeOptions = [
@@ -135,6 +122,7 @@ export default function ProductManagement() {
     const token = getToken();
     if (token) {
       fetchProducts();
+      fetchCategories(); 
     } else {
       setError("Authentication token missing. Please log in.");
     }
@@ -882,8 +870,8 @@ const handleImageUpload = async (e) => {
                   required
                 >
                   <option value="">Select Category</option>
-                  {categoryOptions.map((cat) => (
-                    <option key={cat} value={cat}>
+                  {categoryOptions.map((cat,index) => (
+                    <option key={index} value={cat}>
                       {cat}
                     </option>
                   ))}

@@ -44,6 +44,7 @@ import SuperAdminProducts from './super-admin/pages/SuperAdminProducts.jsx';
 import SuperAdminOrders from './super-admin/pages/SuperAdminOrdersPage.jsx'; // Corrected filename case if needed
 import OrderConfirmation from './pages/order-confirmation.jsx';
 import OrderHistory from './components/orderHistory';
+import CategoryManagement from './super-admin/pages/CategoryManagement.jsx';
 // Protected Routes
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -111,6 +112,7 @@ function App() {
               <Route path="orders" element={<SuperAdminOrders />} /> 
               <Route path="products" element={<SuperAdminProducts />} />
               <Route path="users" element={<Users/>} />
+              <Route path="categories" element={<CategoryManagement/>} />
               {/* Add more routes here */}
             </Route>
             {/* 404 */}
