@@ -1,4 +1,4 @@
-![Screenshot 2025-06-23 120634](https://github.com/user-attachments/assets/286582dc-bd79-4b6b-a9bb-4590adfb5716)# Trendify - Modern Clothing E-Commerce Platform
+# Trendify - Modern Clothing E-Commerce Platform
 
 **Trendify** is an AI-powered MERN stack e-commerce web application tailored for selling clothing and fashion products. Inspired by modern platforms like [Bewakoof.com](https://www.bewakoof.com) and [TheSouledStore.in](https://www.thesouledstore.in), it features a sleek UI/UX, real-time features, and intelligent systems for enhancing user experience and operational efficiency.
 
@@ -95,7 +95,7 @@
 ![Screenshot 2025-06-23 120540](https://github.com/user-attachments/assets/26fefe62-8ae3-4441-aa16-440a0ba4311f)
 ![Screenshot 2025-06-23 120552](https://github.com/user-attachments/assets/3ced39e8-68f3-4aea-a5f8-39f37ec2e1f5)
 ![Screenshot 2025-06-23 120634](https://github.com/user-attachments/assets/531fcbdf-e158-4fde-98b0-4377bf7b4d96)
-
+![Screenshot 2025-06-23 120634](https://github.com/user-attachments/assets/286582dc-bd79-4b6b-a9bb-4590adfb5716)
 ## 📈 Entity-Relationship Diagram (ERD)
 
 ```text
