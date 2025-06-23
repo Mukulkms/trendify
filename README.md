@@ -95,7 +95,7 @@
 ![Screenshot 2025-06-23 120540](https://github.com/user-attachments/assets/26fefe62-8ae3-4441-aa16-440a0ba4311f)
 ![Screenshot 2025-06-23 120552](https://github.com/user-attachments/assets/3ced39e8-68f3-4aea-a5f8-39f37ec2e1f5)
 ![Screenshot 2025-06-23 120634](https://github.com/user-attachments/assets/531fcbdf-e158-4fde-98b0-4377bf7b4d96)
-![Screenshot 2025-06-23 120634](https://github.com/user-attachments/assets/286582dc-bd79-4b6b-a9bb-4590adfb5716)
+
 ## 📈 Entity-Relationship Diagram (ERD)
 
 ```text
